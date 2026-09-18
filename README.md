@@ -586,6 +586,20 @@ outra.
 > Não existe mais o `.exe`: quem usa a página não precisa instalar nada além do
 > navegador — só o computador que a hospeda precisa de Python.
 
+### Publicar na nuvem (Streamlit Community Cloud)
+
+O campo **Main file path** é `app.py`. Não há mais nada a configurar: o
+`requirements.txt` e o `.streamlit/config.toml` já estão no repositório.
+
+Dois pontos antes de publicar:
+
+- **O endereço é público.** Qualquer pessoa com o link abre a página e pode
+  enviar planilhas, mesmo que o repositório seja privado. Restrinja os
+  espectadores por e-mail nas configurações do app, em *Settings › Sharing*.
+- **As planilhas passam por um servidor de terceiros.** Cada arquivo enviado é
+  processado na infraestrutura do Streamlit, não na sua rede. Se os dados forem
+  sensíveis, prefira rodar na rede interna, como descrito acima.
+
 ---
 
 ## 11. Estrutura do projeto
@@ -615,6 +629,12 @@ Cada módulo tem uma responsabilidade só. Trocar a fórmula do PI mexe apenas e
 `core/formula.py` e em `config.py`; mudar a estrutura da planilha mexe apenas
 em `config.py`; mudar a aparência mexe apenas em `tema.py` e
 `.streamlit/config.toml`.
+
+A pasta do projeto é a **raiz da aplicação**, não um pacote: os módulos são
+importados direto dela (`import tema`, `from core import processor`). É de
+propósito — ao publicar, o servidor clona o repositório numa pasta com o nome
+do repositório, e um nome com hífen (`pi-datalink-automatizador`) não seria um
+nome de pacote válido. Assim nada depende de como a pasta se chama.
 
 O `core/` não conhece a interface — foi por isso que trocar a janela Tkinter
 pela página não exigiu tocar em nenhum módulo dele.

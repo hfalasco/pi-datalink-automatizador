@@ -16,7 +16,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ..config import EXTENSOES_SUPORTADAS
+from config import EXTENSOES_SUPORTADAS
 from . import inspector, writer
 from .timeline import gerar_carimbos
 from .xml_utils import PacoteXlsx

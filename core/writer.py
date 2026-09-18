@@ -35,7 +35,7 @@ from . import composta
 from . import metadata
 from . import xml_utils as xu
 from . import styles
-from ..config import MODO_BLOCO, MODO_LINHA
+from config import MODO_BLOCO, MODO_LINHA
 from .formula import intervalo_pi, montar_formula_bloco_xml, montar_formula_xml
 from .inspector import AbaInfo
 from .timeline import formatar_serial, para_serial_excel

@@ -28,25 +28,22 @@ from pathlib import Path
 
 import streamlit as st
 
-# O pacote precisa estar importavel: core/processor.py e core/writer.py usam
-# "from ..config import", o que exige a pasta-mae no sys.path.
+# Esta pasta e a raiz da aplicacao, e os modulos sao importados direto dela.
+# Nada depende do NOME da pasta: ao publicar, o servidor clona o repositorio
+# numa pasta com o nome do repositorio ("pi-datalink-automatizador", com
+# hifens), que nao seria um nome de pacote valido.
 _RAIZ = Path(__file__).resolve().parent
-if str(_RAIZ.parent) not in sys.path:
-    sys.path.insert(0, str(_RAIZ.parent))
+if str(_RAIZ) not in sys.path:
+    sys.path.insert(0, str(_RAIZ))
 
-from pi_datalink_automatizador import tema  # noqa: E402
-from pi_datalink_automatizador.config import (APP_NOME, APP_VERSAO,  # noqa: E402
-                                              MODO_BLOCO, MODO_LINHA,
-                                              Config, ConfigAba)
-from pi_datalink_automatizador.core import (composta, inspector,  # noqa: E402
-                                            processor, writer)
-from pi_datalink_automatizador.core.formula import (intervalo_pi,  # noqa: E402
-                                                    montar_formula,
-                                                    montar_formula_bloco,
-                                                    para_exibicao)
-from pi_datalink_automatizador.core.timeline import (gerar_carimbos,  # noqa: E402
-                                                     quantidade_formulas)
-from pi_datalink_automatizador.logger import Logger  # noqa: E402
+import tema  # noqa: E402
+from config import (APP_NOME, APP_VERSAO, MODO_BLOCO,  # noqa: E402
+                    MODO_LINHA, Config, ConfigAba)
+from core import composta, inspector, processor, writer  # noqa: E402
+from core.formula import (intervalo_pi, montar_formula,  # noqa: E402
+                          montar_formula_bloco, para_exibicao)
+from core.timeline import gerar_carimbos, quantidade_formulas  # noqa: E402
+from logger import Logger  # noqa: E402
 
 DATA_PADRAO = date(2026, 9, 11)
 INTERVALO_PADRAO = 5
