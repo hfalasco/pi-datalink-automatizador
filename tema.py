@@ -1,48 +1,71 @@
 # -*- coding: utf-8 -*-
 """Identidade visual da pagina.
 
-A paleta veio da antiga janela Tkinter (gui/aparencia.py) e continua com os
-mesmos nomes: verde como cor de destaque, azul no cabecalho, cinza para texto
-secundario. Teal e dourado ficam disponiveis para usos pontuais (links, avisos)
-sem poluir o visual minimalista.
+A paleta continua sendo a da marca - verde de destaque, azul no cabecalho,
+cinza no texto de apoio - com os mesmos nomes de antes. O que mudou foi o
+arranjo: a pagina agora tem barra lateral com a marca e os ajustes, e o miolo
+virou uma sequencia de cartoes brancos sobre fundo claro.
 
 Parte das cores tambem esta em .streamlit/config.toml - o Streamlit precisa
 delas antes de o script rodar, para pintar a pagina inteira. O que o config.toml
-nao alcanca (faixa do cabecalho, caixa do registro, bordas, hover do botao)
+nao alcanca (barra lateral, cartoes, cartelas de numeros, caixa do registro)
 esta no CSS aqui embaixo.
+
+Nada aqui baixa fonte ou icone da internet: tudo usa fonte do proprio sistema.
+Numa rede de fabrica, sem saida para a internet, a pagina abre igual.
 """
 
 from __future__ import annotations
 
 # Paleta - tons sobrios, bom contraste, sem depender de tema do sistema.
-COR_FUNDO = "#EAF3EE"          # sm-green-lt
-COR_PAINEL = "#ffffff"
-COR_BORDA = "#CFE3D6"          # tom claro derivado do verde, para bordas discretas
-COR_TEXTO = "#262626"
-COR_TEXTO_FRACO = "#595959"    # sm-gray
+COR_FUNDO = "#F2F5F7"          # fundo da pagina
+COR_PAINEL = "#FFFFFF"         # cartoes e barra lateral
+COR_BORDA = "#E3E9EE"          # bordas discretas
+COR_TEXTO = "#1B2733"
+COR_TEXTO_FRACO = "#64748B"    # sm-gray
 COR_DESTAQUE = "#1E7E4A"       # sm-green
-COR_DESTAQUE_ATIVO = "#0F4C2A"  # sm-green-dk
+COR_DESTAQUE_ATIVO = "#166139"  # sm-green-dk
+COR_DESTAQUE_CLARO = "#E8F3EC"  # fundo de apoio no verde da marca
 COR_CABECALHO = "#1F4E79"      # sm-blue
-COR_SUBTITULO = "#b9c6d4"      # texto secundario sobre o azul do cabecalho
-COR_LOG_FUNDO = "#16324A"      # variacao escura de sm-blue
-COR_LOG_TEXTO = "#dfe7ef"
+COR_CABECALHO_ESCURO = "#16324A"
+COR_SUBTITULO = "#B9C6D4"      # texto secundario sobre o azul da marca
+COR_LOG_FUNDO = "#0F2436"      # variacao escura de sm-blue
+COR_LOG_TEXTO = "#DCE7F1"
 COR_TEAL = "#1A7A7A"           # sm-teal - reservado para acentos pontuais
 COR_GOLD = "#C8A000"           # sm-gold - reservado para avisos/destaques raros
 
-FAMILIA_FONTE = "Segoe UI"
-FAMILIA_MONO = "Consolas"
+FAMILIA_FONTE = '"Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif'
+FAMILIA_MONO = '"Cascadia Mono", Consolas, "Courier New", monospace'
 
 
-def css() -> str:
-    """Bloco <style> com o que o tema do config.toml nao cobre.
-
-    O texto passa por formatacao com %, entao todo sinal de porcentagem
-    literal do CSS (100%%, 50%%...) precisa vir dobrado.
-    """
-    return """
+# As cores entram so aqui, por substituicao. O resto do CSS e texto literal e
+# usa var(--...), entao "100%" e "50%" podem ser escritos uma vez so.
+_VARIAVEIS = """
 <style>
+  :root {
+    --pi-fundo: %(fundo)s;
+    --pi-painel: %(painel)s;
+    --pi-borda: %(borda)s;
+    --pi-texto: %(texto)s;
+    --pi-fraco: %(fraco)s;
+    --pi-verde: %(destaque)s;
+    --pi-verde-escuro: %(destaque_ativo)s;
+    --pi-verde-claro: %(destaque_claro)s;
+    --pi-azul: %(cabecalho)s;
+    --pi-azul-escuro: %(cabecalho_escuro)s;
+    --pi-azul-claro: %(subtitulo)s;
+    --pi-log-fundo: %(log_fundo)s;
+    --pi-log-texto: %(log_texto)s;
+    --pi-fonte: %(fonte)s;
+    --pi-mono: %(mono)s;
+    --pi-raio: 12px;
+    --pi-sombra: 0 1px 2px rgba(16, 40, 64, .06), 0 6px 16px rgba(16, 40, 64, .05);
+  }
+"""
+
+_REGRAS = """
   html, body, [class*="st-"], button, input, textarea, select {
-    font-family: "%(fonte)s", "Segoe UI", system-ui, sans-serif;
+    font-family: var(--pi-fonte);
   }
 
   /* Excecao obrigatoria: os icones do Streamlit sao LIGADURAS. O elemento
@@ -56,106 +79,291 @@ def css() -> str:
     font-family: "Material Symbols Rounded", "Material Icons" !important;
   }
 
-  /* A faixa azul faz as vezes de cabecalho; a folga no topo evita que a
-     barra de ferramentas do Streamlit corte o titulo. */
-  .block-container { padding-top: 3.5rem; max-width: 1100px; }
+  /* ----------------------------------------------------------------- */
+  /* Estrutura                                                          */
+  /* ----------------------------------------------------------------- */
+  [data-testid="stAppViewContainer"] { background: var(--pi-fundo); }
+  [data-testid="stHeader"] { background: transparent; }
 
-  /* Faixa do cabecalho, equivalente ao Cabecalho.TFrame da janela antiga. */
-  .faixa-cabecalho {
-    background: %(cabecalho)s;
-    padding: 14px 20px;
-    border-radius: 6px;
+  /* Enfeites do proprio Streamlit que nao dizem nada a quem usa a pagina.
+     O botao "Deploy" so aparece para quem roda localmente. */
+  [data-testid="stAppDeployButton"], footer { display: none; }
+
+  /* A pagina usa layout largo por causa da barra lateral, mas o texto fica
+     mais facil de ler numa coluna estreita - dai o limite de largura. */
+  .block-container {
+    padding-top: 2.6rem;
+    padding-bottom: 3rem;
+    max-width: 1060px;
+  }
+
+  /* ----------------------------------------------------------------- */
+  /* Barra lateral                                                      */
+  /* ----------------------------------------------------------------- */
+  [data-testid="stSidebar"] {
+    background: var(--pi-painel);
+    border-right: 1px solid var(--pi-borda);
+  }
+  [data-testid="stSidebar"] [data-testid="stSidebarUserContent"],
+  [data-testid="stSidebarContent"] { padding-top: .6rem; }
+
+  .pi-marca {
+    background: linear-gradient(135deg, var(--pi-azul) 0%, var(--pi-azul-escuro) 100%);
+    border-radius: var(--pi-raio);
+    padding: 16px 18px;
     margin-bottom: 18px;
   }
-  .faixa-cabecalho .titulo {
-    color: #ffffff;
-    font-size: 1.35rem;
+  .pi-marca .pi-marca-nome {
+    color: #FFFFFF;
+    font-size: 1.05rem;
     font-weight: 700;
-    letter-spacing: .3px;
+    line-height: 1.25;
+    letter-spacing: .2px;
   }
-  .faixa-cabecalho .subtitulo {
-    color: %(subtitulo)s;
-    font-size: .85rem;
-    margin-top: 3px;
+  .pi-marca .pi-marca-sub {
+    color: var(--pi-azul-claro);
+    font-size: .78rem;
+    margin-top: 6px;
+  }
+  .pi-versao {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .14);
+    color: #FFFFFF;
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .4px;
   }
 
-  /* Bordas discretas nos blocos - o TLabelframe de antes. */
-  [data-testid="stVerticalBlockBorderWrapper"] > div > [data-testid="stVerticalBlock"] {
-    border-radius: 6px;
+  /* Titulo de cada grupo da barra lateral. */
+  .pi-grupo {
+    color: var(--pi-fraco);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .9px;
+    text-transform: uppercase;
+    margin: 4px 0 2px;
   }
+
+  /* ----------------------------------------------------------------- */
+  /* Titulo da pagina                                                   */
+  /* ----------------------------------------------------------------- */
+  .pi-titulo h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--pi-texto);
+    margin: 0;
+    padding: 0;
+    line-height: 1.25;
+  }
+  .pi-titulo p {
+    color: var(--pi-fraco);
+    font-size: .92rem;
+    margin: 6px 0 18px;
+  }
+
+  /* ----------------------------------------------------------------- */
+  /* Cartoes (st.container(border=True))                                */
+  /* ----------------------------------------------------------------- */
   div[data-testid="stVerticalBlockBorderWrapper"] {
-    border-color: %(borda)s !important;
+    background: var(--pi-painel);
+    border: 1px solid var(--pi-borda) !important;
+    border-radius: var(--pi-raio) !important;
+    box-shadow: var(--pi-sombra);
+  }
+  /* A barra lateral tambem usa containers; la eles ficam sem cartao. */
+  [data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"] {
+    box-shadow: none;
+    background: transparent;
   }
 
-  /* Titulo de cada bloco, no verde de destaque, como o TLabelframe.Label. */
-  .titulo-secao {
-    color: %(destaque)s;
-    font-weight: 700;
-    font-size: .95rem;
-    margin-bottom: .4rem;
+  /* Titulo de cada cartao, com o numero do passo em verde. */
+  .pi-secao {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: .6rem;
   }
-  .texto-fraco { color: %(fraco)s; font-size: .85rem; }
+  .pi-secao .pi-passo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+    background: var(--pi-verde-claro);
+    color: var(--pi-verde);
+    font-size: .75rem;
+    font-weight: 700;
+    flex: 0 0 auto;
+  }
+  .pi-secao .pi-nome {
+    color: var(--pi-texto);
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  .texto-fraco { color: var(--pi-fraco); font-size: .85rem; line-height: 1.5; }
+
+  /* ----------------------------------------------------------------- */
+  /* Cartelas de numeros                                                */
+  /* ----------------------------------------------------------------- */
+  .pi-cartelas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin: 14px 0 4px;
+  }
+  .pi-cartela {
+    background: var(--pi-painel);
+    border: 1px solid var(--pi-borda);
+    border-radius: var(--pi-raio);
+    box-shadow: var(--pi-sombra);
+    padding: 13px 15px;
+  }
+  .pi-cartela .pi-rotulo {
+    color: var(--pi-fraco);
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+  }
+  .pi-cartela .pi-valor {
+    color: var(--pi-texto);
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.3;
+    margin-top: 2px;
+  }
+  .pi-cartela .pi-detalhe { color: var(--pi-fraco); font-size: .76rem; }
+
+  /* ----------------------------------------------------------------- */
+  /* Campos e botoes                                                    */
+  /* ----------------------------------------------------------------- */
+  [data-testid="stFileUploaderDropzone"] {
+    background: var(--pi-verde-claro);
+    border: 1px dashed var(--pi-verde);
+    border-radius: var(--pi-raio);
+  }
 
   /* A largura dos botoes nao fica aqui: quem encolhe e o stElementContainer,
      varios niveis acima, e o CSS no botao nao o alcanca. Quem resolve e
      use_container_width=True na chamada, em app.py. */
-
-  /* Botao PROCESSAR: verde solido, escurecendo no hover. */
+  .stButton button {
+    border-radius: 10px;
+    font-weight: 600;
+  }
   .stButton button[kind="primary"] {
-    background: %(destaque)s;
-    border-color: %(destaque)s;
+    background: var(--pi-verde);
+    border-color: var(--pi-verde);
     font-weight: 700;
     letter-spacing: .5px;
   }
   .stButton button[kind="primary"]:hover,
   .stButton button[kind="primary"]:focus:not(:active) {
-    background: %(destaque_ativo)s;
-    border-color: %(destaque_ativo)s;
-    color: #ffffff;
+    background: var(--pi-verde-escuro);
+    border-color: var(--pi-verde-escuro);
+    color: #FFFFFF;
   }
+  .stButton button[kind="secondary"] {
+    border-color: var(--pi-borda);
+    color: var(--pi-texto);
+  }
+  .stButton button[kind="secondary"]:hover:not(:disabled) {
+    border-color: var(--pi-verde);
+    color: var(--pi-verde);
+  }
+  [data-testid="stDownloadButton"] button { border-radius: 10px; font-weight: 700; }
 
-  /* Registro da execucao: fundo escuro e fonte fixa, como o tk.Text de antes. */
+  [data-testid="stProgress"] > div > div > div > div { background: var(--pi-verde); }
+
+  /* ----------------------------------------------------------------- */
+  /* Registro da execucao                                               */
+  /* ----------------------------------------------------------------- */
   .st-key-registro pre, .st-key-registro code {
-    background: %(log_fundo)s !important;
-    color: %(log_texto)s !important;
-    font-family: "%(mono)s", "Courier New", monospace !important;
-    font-size: .8rem !important;
-    line-height: 1.45 !important;
+    background: var(--pi-log-fundo) !important;
+    color: var(--pi-log-texto) !important;
+    font-family: var(--pi-mono) !important;
+    font-size: .78rem !important;
+    line-height: 1.5 !important;
   }
-  .st-key-registro [data-testid="stCode"] { border-radius: 6px; }
-  .st-key-registro pre { max-height: 420px; overflow-y: auto; }
+  .st-key-registro [data-testid="stCode"] { border-radius: 10px; }
+  .st-key-registro pre { max-height: 360px; overflow-y: auto; }
   /* O botao de copiar do st.code fica invisivel sobre o fundo escuro. */
-  .st-key-registro [data-testid="stCopyButton"] svg { stroke: %(log_texto)s; }
+  .st-key-registro [data-testid="stCopyButton"] svg { stroke: var(--pi-log-texto); }
+
+  /* Em telas estreitas o cartao encosta na borda; um respiro resolve. */
+  @media (max-width: 640px) {
+    .block-container { padding-left: 1rem; padding-right: 1rem; }
+  }
 </style>
-""" % {
-        "fonte": FAMILIA_FONTE,
-        "mono": FAMILIA_MONO,
-        "cabecalho": COR_CABECALHO,
-        "subtitulo": COR_SUBTITULO,
+"""
+
+
+def css() -> str:
+    """Bloco <style> com o que o tema do config.toml nao cobre."""
+    return _VARIAVEIS % {
+        "fundo": COR_FUNDO,
+        "painel": COR_PAINEL,
         "borda": COR_BORDA,
+        "texto": COR_TEXTO,
+        "fraco": COR_TEXTO_FRACO,
         "destaque": COR_DESTAQUE,
         "destaque_ativo": COR_DESTAQUE_ATIVO,
-        "fraco": COR_TEXTO_FRACO,
+        "destaque_claro": COR_DESTAQUE_CLARO,
+        "cabecalho": COR_CABECALHO,
+        "cabecalho_escuro": COR_CABECALHO_ESCURO,
+        "subtitulo": COR_SUBTITULO,
         "log_fundo": COR_LOG_FUNDO,
         "log_texto": COR_LOG_TEXTO,
-    }
+        "fonte": FAMILIA_FONTE,
+        "mono": FAMILIA_MONO,
+    } + _REGRAS
 
 
-def cabecalho(titulo: str, subtitulo: str) -> str:
-    """Faixa azul do topo, com titulo branco e subtitulo em tom claro."""
+def marca(nome: str, descricao: str, versao: str) -> str:
+    """Cartao azul do topo da barra lateral."""
     return (
-        '<div class="faixa-cabecalho">'
-        '<div class="titulo">%s</div>'
-        '<div class="subtitulo">%s</div>'
-        "</div>" % (titulo, subtitulo)
+        '<div class="pi-marca">'
+        '<div class="pi-marca-nome">%s</div>'
+        '<div class="pi-marca-sub">%s</div>'
+        '<div class="pi-versao">v%s</div>'
+        "</div>" % (nome, descricao, versao)
     )
 
 
-def titulo_secao(texto: str) -> str:
-    """Rotulo verde no topo de cada bloco (era o TLabelframe.Label)."""
-    return '<div class="titulo-secao">%s</div>' % texto
+def titulo_pagina(titulo: str, subtitulo: str) -> str:
+    """Titulo e linha de apoio no topo do miolo."""
+    return ('<div class="pi-titulo"><h1>%s</h1><p>%s</p></div>'
+            % (titulo, subtitulo))
+
+
+def grupo(texto: str) -> str:
+    """Rotulo de um grupo de ajustes da barra lateral."""
+    return '<div class="pi-grupo">%s</div>' % texto
+
+
+def titulo_secao(texto: str, passo: str = "") -> str:
+    """Titulo de um cartao, com o numero do passo quando houver."""
+    marcador = '<span class="pi-passo">%s</span>' % passo if passo else ""
+    return ('<div class="pi-secao">%s<span class="pi-nome">%s</span></div>'
+            % (marcador, texto))
 
 
 def texto_fraco(texto: str) -> str:
-    """Texto de apoio em cinza (era o estilo Fraco.TLabel)."""
+    """Texto de apoio em cinza."""
     return '<div class="texto-fraco">%s</div>' % texto
+
+
+def cartelas(itens) -> str:
+    """Faixa de numeros do topo: [(rotulo, valor, detalhe), ...]."""
+    corpo = "".join(
+        '<div class="pi-cartela">'
+        '<div class="pi-rotulo">%s</div>'
+        '<div class="pi-valor">%s</div>'
+        '<div class="pi-detalhe">%s</div>'
+        "</div>" % (rotulo, valor, detalhe)
+        for rotulo, valor, detalhe in itens
+    )
+    return '<div class="pi-cartelas">%s</div>' % corpo
