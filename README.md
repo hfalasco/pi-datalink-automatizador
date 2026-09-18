@@ -160,20 +160,34 @@ endereço que aparece no terminal. Para encerrar, feche a aba e pressione
 
 ### Passo a passo na página
 
+A página tem duas partes: a **barra lateral**, à esquerda, com o que muda de
+rodada para rodada (período e opções), e o **miolo**, com os três passos na
+ordem em que são feitos.
+
+Na barra lateral:
+
+- **Período** — data inicial, data final e intervalo.
+- **Opções** — *Buscar tudo de uma vez* (modo rápido), *Abrir sem calcular*,
+  *Matriz dinâmica* e *Manter contas da planilha*. Todas já vêm marcadas nos
+  valores recomendados.
+
+No miolo:
+
 1. **Arquivos** — arraste as planilhas `.xlsx`/`.xlsm` para a caixa (ou clique
    em *Browse files*). Pode enviar várias de uma vez.
-2. **Período** — ajuste data inicial, data final e intervalo. A linha cinza
-   logo abaixo mostra na hora quantas linhas serão geradas e quantas consultas
-   ao PI o arquivo mais pesado vai fazer.
-3. **Abas** — deixe *Processar todas as abas* marcado, ou desmarque e escolha
-   as abas na lista. A tabela permite dar período próprio a cada aba (seção 5-A).
-4. **Opções** — modo rápido, cálculo manual e matriz dinâmica já vêm marcados
-   nos valores recomendados.
-5. **Testar 1 arquivo** — mostra no *Registro* o que seria feito, sem gravar nada.
-6. **PROCESSAR** — roda o lote. A barra de progresso e o *Registro* acompanham
-   em tempo real.
-7. **Baixar arquivos processados (.zip)** — o `.zip` traz as cópias processadas
-   e a pasta `logs/` com o registro da execução.
+2. **Abas** — deixe *Processar todas as abas* marcado, ou desmarque e escolha
+   as abas na lista. Para dar período próprio a alguma aba, marque *Período
+   próprio para alguma aba* (seção 5-A).
+3. **Executar** — *Testar 1 arquivo* mostra no *Registro* o que seria feito, sem
+   gravar nada; **PROCESSAR** roda o lote, com barra de progresso e registro
+   acompanhando.
+
+Entre os passos 2 e 3 ficam as quatro cartelas de números — arquivos, abas com
+TAG, linhas por arquivo e consultas ao PI do arquivo mais pesado. Elas mudam na
+hora a cada data, intervalo ou opção trocada.
+
+No fim, **Baixar arquivos processados (.zip)** — o `.zip` traz as cópias
+processadas e a pasta `logs/` com o registro completo da execução.
 
 ### Onde ficam os arquivos
 
@@ -197,9 +211,12 @@ Um mesmo arquivo pode ter a aba **por hora** de 5 em 5 minutos e a aba
 
 ### Na página
 
-Na caixa **Abas**, depois de enviar os arquivos, aparece uma tabela com uma
-linha por aba encontrada e as colunas *Data inicial*, *Data final* e
-*Intervalo (min)*.
+Na caixa **Abas**, depois de enviar os arquivos, marque *Período próprio para
+alguma aba*. Aparece uma tabela com uma linha por aba encontrada e as colunas
+*Data inicial*, *Data final* e *Intervalo (min)*.
+
+A tabela fica atrás dessa caixa de marcar de propósito: ela usa o componente
+mais pesado da página, e quase toda rodada usa o mesmo período em todas as abas.
 
 1. Clique na célula da aba que quer tratar diferente (ex.: `Indicadores Diários`).
 2. Preencha **só o que muda**. Campo em branco herda o valor geral da caixa
@@ -490,6 +507,49 @@ consulta o PI) - confira se o numero de linhas ainda bate
 
 ---
 
+## 5-D. O que a página faz para não cair
+
+O Streamlit roda o arquivo `app.py` **inteiro** a cada clique, tecla digitada ou
+data trocada. Com a versão anterior, cada um desses gestos:
+
+- reabria todas as planilhas enviadas — duas vezes, uma para listar as abas e
+  outra para estimar as consultas;
+- montava a lista completa de carimbos de tempo só para escrever quantos eram
+  (um ano de 1 em 1 minuto são 525.600 datas, ~26 MB, jogados fora em seguida).
+
+E, durante o processamento, **cada linha do log** redesenhava a caixa do
+registro, ou seja, uma mensagem pela conexão por linha escrita, carregando todo
+o texto acumulado até ali. Era o que travava a aba do navegador e derrubava a
+página nos lotes grandes.
+
+O que mudou:
+
+| Antes | Agora |
+|---|---|
+| Planilhas reabertas a cada interação | Lidas **uma vez** por conjunto enviado; trocar data ou opção não abre arquivo nenhum |
+| Lista de datas montada a cada interação | Só a **conta**, sem montar lista |
+| Uma mensagem de tela por linha de log | Tela atualizada no máximo a cada 0,4 s, com as últimas 400 linhas |
+| `.zip` do resultado na memória **e** na sessão | `.zip` escrito em disco; a sessão guarda só o caminho |
+| Pasta de saída mantida junto com o `.zip` | Apagada assim que o `.zip` fica pronto |
+| Pastas temporárias acumulando para sempre | Apagadas depois de 6 h paradas |
+| Envio de até 500 MB por arquivo | 50 MB — o suficiente com folga para um template |
+
+Medido com 20 planilhas e período de um ano de 1 em 1 minuto: o custo de trocar
+uma data caiu de cerca de **1,4 s** (1 s reabrindo arquivos + 0,4 s montando
+datas) para menos de **1 ms**.
+
+### Limites que a página impõe
+
+- **Acima de 100.000 linhas por arquivo** aparece um aviso: a planilha fica
+  pesada e o processamento pode faltar memória.
+- **Acima de 1.048.576 linhas** a página recusa a rodada — é o limite de linhas
+  do próprio Excel, o arquivo gerado não abriria.
+
+Em ambos os casos a saída é a mesma: aumentar o intervalo ou dividir o período
+em mais de uma rodada.
+
+---
+
 ## 6. Testar primeiro com 1 arquivo
 
 Envie **um** arquivo, escolha-o em *Arquivo usado no teste* e clique em
@@ -551,8 +611,10 @@ Não altere isso manualmente.
 
 ## 9. Log
 
-O mesmo texto que aparece no **Registro da execução** é gravado em
-`logs\log_AAAAMMDD_HHMMSS.txt`, que vem dentro do `.zip` baixado:
+Tudo que a execução escreve vai para `logs\log_AAAAMMDD_HHMMSS.txt`, dentro do
+`.zip` baixado. O **Registro da execução** na tela mostra as últimas 400 linhas
+desse mesmo texto — o navegador não aguenta desenhar mais do que isso de uma vez,
+e o arquivo tem sempre o registro inteiro:
 
 ```
 PROCESSAMENTO INICIADO
@@ -660,7 +722,8 @@ pela página não exigiu tocar em nenhum módulo dele.
 | *Não é possível alterar parte de uma matriz* | a fórmula cobre a coluna inteira | normal no modo bloco; apague `B3` para limpar tudo, ou desmarque *Buscar tudo de uma vez* |
 | Coluna traz data em vez de valor | `PIAdvCalcDat` devolveu timestamps | desmarque *Buscar tudo de uma vez* e avise, para ajustar a matriz |
 | A página não abre no navegador | o `streamlit run` não está de pé | rode `streamlit run app.py` e use o endereço mostrado no terminal |
-| `File must be 500.0MB or smaller` | planilha acima do limite de envio | aumente `maxUploadSize` em `.streamlit/config.toml` |
+| A página cai ou reinicia sozinha | período grande demais para a memória do servidor | aumente o intervalo, divida em rodadas ou veja a seção 5-D |
+| `File must be 50.0MB or smaller` | planilha acima do limite de envio | aumente `maxUploadSize` em `.streamlit/config.toml` |
 
 ---
 

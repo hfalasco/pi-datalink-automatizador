@@ -13,14 +13,26 @@ nunca sao tocados.
 
 Todo o motor (core/, config.py, logger.py) e o mesmo de antes; esta pagina e
 so a casca que substitui a antiga janela Tkinter.
+
+O Streamlit roda este arquivo INTEIRO a cada clique, tecla ou data trocada.
+Por isso tudo que e caro fica fora do caminho de um clique comum:
+
+  * as planilhas sao lidas UMA vez por conjunto enviado (resumo_dos_arquivos);
+    trocar data, intervalo ou opcao nao reabre arquivo nenhum;
+  * a previsao de linhas e feita por conta, sem montar a lista de datas;
+  * o registro e redesenhado algumas vezes por segundo, nao a cada linha -
+    uma mensagem por linha entupia a conexao e derrubava a pagina;
+  * o .zip do resultado e montado em disco e fica em disco; a memoria da
+    sessao guarda so o caminho dele.
 """
 
 from __future__ import annotations
 
-import io
+import gc
 import shutil
 import sys
 import tempfile
+import time
 import traceback
 import zipfile
 from datetime import date, datetime
@@ -37,29 +49,91 @@ if str(_RAIZ) not in sys.path:
     sys.path.insert(0, str(_RAIZ))
 
 import tema  # noqa: E402
-from config import (APP_NOME, APP_VERSAO, MODO_BLOCO,  # noqa: E402
-                    MODO_LINHA, Config, ConfigAba)
+from config import (APP_VERSAO, MODO_BLOCO, MODO_LINHA,  # noqa: E402
+                    PRIMEIRA_LINHA_DADOS_PADRAO, Config, ConfigAba,
+                    normalizar_nome)
 from core import composta, inspector, processor, writer  # noqa: E402
 from core.formula import (intervalo_pi, montar_formula,  # noqa: E402
                           montar_formula_bloco, para_exibicao)
-from core.timeline import gerar_carimbos, quantidade_formulas  # noqa: E402
+from core.timeline import (quantidade_carimbos,  # noqa: E402
+                           quantidade_formulas, ultimo_carimbo)
 from logger import Logger  # noqa: E402
 
 DATA_PADRAO = date(2026, 9, 11)
 INTERVALO_PADRAO = 5
+# O nome tecnico (APP_NOME, em config.py) e todo em maiusculas e serve ao log.
+# Na tela vale a grafia da marca: APP_NOME.title() escreveria "Pi Datalink".
+NOME_EXIBIDO = "PI DataLink"
 SUBTITULO = ("Preenche as formulas PIAdvCalcVal em lote. "
              "Os arquivos originais nunca sao alterados.")
+
+# --- Limites que existem para a pagina nao cair -----------------------------
+# Quantas linhas do registro ficam na tela. O log completo vai inteiro para
+# dentro do .zip; o navegador e que nao aguenta desenhar dezenas de milhares.
+LINHAS_VISIVEIS_REGISTRO = 400
+# Intervalo minimo entre dois redesenhos do registro, em segundos.
+INTERVALO_REDESENHO = 0.4
+# Acima disto a planilha fica pesada e o servidor pode ficar sem memoria.
+LIMITE_LINHAS_AVISO = 100_000
+# Limite do proprio Excel: uma planilha nao tem mais linhas do que isto.
+LIMITE_LINHAS_EXCEL = 1_048_576
+# Pastas de sessoes paradas ha mais tempo que isto sao apagadas.
+HORAS_ATE_A_FAXINA = 6
+
+
+def numero(valor: int) -> str:
+    """12345 -> '12.345' (separador de milhar como se escreve aqui)."""
+    return "{:,}".format(int(valor)).replace(",", ".")
 
 
 # ---------------------------------------------------------------------------
 # Pasta de trabalho da sessao
 # ---------------------------------------------------------------------------
 
+@st.cache_resource(ttl=3600, show_spinner=False)
+def faxina_de_sessoes_antigas() -> int:
+    """Apaga as pastas temporarias que sobraram de sessoes ja encerradas.
+
+    Quando alguem fecha a aba, o Streamlit nao avisa ninguem e a pasta fica la.
+    Num servidor que vive dias no ar isso enche o disco - e disco cheio derruba
+    a pagina do mesmo jeito que memoria cheia. O cache_resource faz esta funcao
+    rodar uma vez por hora, nao a cada clique.
+    """
+    limite = time.time() - HORAS_ATE_A_FAXINA * 3600
+    apagadas = 0
+    for pasta in Path(tempfile.gettempdir()).glob("pi_datalink_*"):
+        try:
+            if pasta.is_dir() and pasta.stat().st_mtime < limite:
+                shutil.rmtree(pasta, ignore_errors=True)
+                apagadas += 1
+        except OSError:
+            continue  # pasta de outra sessao, em uso ou sem permissao
+    return apagadas
+
+
 def pasta_de_trabalho() -> Path:
     """Pasta temporaria propria desta sessao, com entrada/ e saida/ dentro."""
-    if "pasta_trabalho" not in st.session_state:
-        st.session_state.pasta_trabalho = tempfile.mkdtemp(prefix="pi_datalink_")
-    return Path(st.session_state.pasta_trabalho)
+    guardada = st.session_state.get("pasta_trabalho")
+    if guardada and Path(guardada).is_dir():
+        return Path(guardada)
+
+    # Primeira visita - ou a faxina acima levou a pasta de uma sessao que ficou
+    # horas aberta sem uso. Nos dois casos, comeca de novo.
+    pasta = Path(tempfile.mkdtemp(prefix="pi_datalink_"))
+    st.session_state.pasta_trabalho = str(pasta)
+    st.session_state.assinatura = None
+    return pasta
+
+
+def descartar_download() -> None:
+    """Apaga o .zip da rodada anterior: ele nao serve mais e ocupa disco."""
+    anterior = st.session_state.get("download")
+    if anterior:
+        try:
+            Path(anterior[1]).unlink()
+        except OSError:
+            pass
+    st.session_state.download = None
 
 
 def gravar_enviados(enviados: list) -> tuple:
@@ -79,7 +153,7 @@ def gravar_enviados(enviados: list) -> tuple:
             (entrada / Path(arquivo.name).name).write_bytes(arquivo.getbuffer())
         st.session_state.assinatura = assinatura
         st.session_state.registro = []
-        st.session_state.download = None
+        descartar_download()
 
     return assinatura
 
@@ -123,51 +197,145 @@ def montar_config(entrada, saida, inicio, fim, intervalo, abas, por_aba,
     )
 
 
-def _serializar_por_aba(por_aba: dict) -> tuple:
-    """Forma hashavel dos ajustes por aba, para servir de chave de cache."""
-    return tuple(sorted(
-        (nome,
-         ajuste.data_inicial.isoformat() if ajuste.data_inicial else "",
-         ajuste.data_final.isoformat() if ajuste.data_final else "",
-         ajuste.intervalo_minutos or 0)
-        for nome, ajuste in (por_aba or {}).items()
-    ))
+# ---------------------------------------------------------------------------
+# Leitura das planilhas - a parte cara, feita UMA vez por conjunto enviado
+# ---------------------------------------------------------------------------
 
+@st.cache_data(show_spinner="Lendo as planilhas...", max_entries=2, ttl=3600)
+def resumo_dos_arquivos(assinatura: tuple, entrada: str,
+                        manter_contas: bool) -> list:
+    """Le cada planilha uma vez e guarda so os numeros que a pagina usa.
 
-def _desserializar_por_aba(serial: tuple) -> dict:
-    ajustes = {}
-    for nome, inicio, fim, intervalo in serial:
-        ajustes[nome] = ConfigAba(
-            data_inicial=date.fromisoformat(inicio) if inicio else None,
-            data_final=date.fromisoformat(fim) if fim else None,
-            intervalo_minutos=intervalo or None,
-        )
-    return ajustes
+    Abrir um .xlsx significa descompactar o pacote inteiro na memoria, e a
+    pagina precisava disso duas vezes: uma para listar as abas, outra para
+    estimar as consultas - e a segunda se repetia a cada data trocada.
 
+    Nada do que e lido aqui depende do periodo: as abas, as TAGs de cada aba e
+    o formato das contas proprias sao os mesmos para qualquer data. Entao a
+    leitura acontece uma vez e o resto da pagina trabalha em cima deste resumo:
 
-@st.cache_data(show_spinner="Lendo as abas dos arquivos...")
-def abas_dos_arquivos(assinatura: tuple, entrada: str, manter_contas: bool) -> dict:
-    """{nome da aba: em quantos arquivos ela tem TAG}. Nao depende do periodo."""
+        [{"nome": "Moenda_A.xlsx", "erro": "",
+          "abas": {"Indicadores": ((consultas, conta_propria, cabe_em_bloco), ...)}}]
+    """
     cfg = montar_config(entrada, Path(entrada).parent / "saida",
                         DATA_PADRAO, DATA_PADRAO, INTERVALO_PADRAO,
                         None, None, manter_contas=manter_contas)
-    return processor.abas_disponiveis(processor.listar_arquivos(entrada), cfg)
+    resumo = []
+    for caminho in processor.listar_arquivos(entrada):
+        info = inspector.inspecionar_arquivo(caminho, cfg)
+        if info.erro:
+            resumo.append({"nome": caminho.name, "erro": info.erro, "abas": {}})
+            continue
+        abas = {}
+        for aba in info.abas_processaveis:
+            abas[aba.nome] = tuple(
+                (tag.consultas,
+                 bool(tag.personalizada),
+                 bool(tag.personalizada and tag.personalizada.cabe_em_bloco))
+                for tag in aba.tags
+            )
+        resumo.append({"nome": caminho.name, "erro": "", "abas": abas})
+    return resumo
 
 
-@st.cache_data(show_spinner=False)
-def estimativa_de_consultas(assinatura: tuple, entrada: str, inicio: date,
-                            fim: date, intervalo: int, abas: tuple,
-                            por_aba_serial: tuple, manter_contas: bool,
-                            rapido: bool) -> tuple:
-    """(consultas no modo bloco, consultas no modo linha) do arquivo mais pesado."""
-    cfg = montar_config(entrada, Path(entrada).parent / "saida", inicio, fim,
-                        intervalo, list(abas),
-                        _desserializar_por_aba(por_aba_serial),
-                        rapido=rapido, manter_contas=manter_contas)
-    try:
-        return processor.estimar_consultas(processor.listar_arquivos(entrada), cfg)
-    except Exception:
-        return (0, 0)
+def abas_com_tag(resumo: list) -> dict:
+    """{nome da aba: em quantos arquivos ela tem TAG}."""
+    contagem = {}
+    for arquivo in resumo:
+        for nome in arquivo["abas"]:
+            contagem[nome] = contagem.get(nome, 0) + 1
+    return contagem
+
+
+def formulas_de_cada_aba(nomes, inicio, fim, intervalo, por_aba) -> dict:
+    """Quantas formulas cada aba gera, ja com o ajuste proprio dela.
+
+    So conta - nao monta a lista de datas (ver core/timeline.quantidade_carimbos).
+    """
+    ajustes = {normalizar_nome(nome): ajuste
+               for nome, ajuste in (por_aba or {}).items()}
+    quantidades = {}
+    for nome in nomes:
+        ajuste = ajustes.get(normalizar_nome(nome))
+        comeco = (ajuste.data_inicial if ajuste and ajuste.data_inicial else inicio)
+        termino = (ajuste.data_final if ajuste and ajuste.data_final else fim)
+        passo = (ajuste.intervalo_minutos
+                 if ajuste and ajuste.intervalo_minutos else intervalo)
+        try:
+            quantidades[nome] = quantidade_formulas(
+                quantidade_carimbos(comeco, termino, passo, True), True)
+        except ValueError:
+            quantidades[nome] = 0
+    return quantidades
+
+
+def estimar_consultas(resumo: list, escolhidas, formulas: dict,
+                      rapido: bool) -> tuple:
+    """(consultas no modo bloco, consultas no modo linha) do arquivo mais pesado.
+
+    E a mesma conta de core/processor.estimar_consultas, so que em cima do
+    resumo ja lido: puro numero, sem tocar em disco.
+    """
+    selecao = {nome.strip().lower() for nome in escolhidas or []}
+    pior_bloco = pior_linha = 0
+    for arquivo in resumo:
+        bloco = linha = 0
+        for nome, tags in arquivo["abas"].items():
+            if selecao and nome.strip().lower() not in selecao:
+                continue
+            total = formulas.get(nome, 0)
+            for consultas, conta_propria, cabe_em_bloco in tags:
+                # Uma coluna com conta propria consulta uma TAG por chamada; e,
+                # quando a conta nao cabe em matriz, ela continua linha a linha
+                # mesmo com o resto do arquivo em modo bloco.
+                em_bloco = (cabe_em_bloco and rapido) if conta_propria else True
+                bloco += consultas if em_bloco else consultas * total
+                linha += consultas * total
+        pior_bloco = max(pior_bloco, bloco)
+        pior_linha = max(pior_linha, linha)
+    return pior_bloco, pior_linha
+
+
+# ---------------------------------------------------------------------------
+# Registro na tela
+# ---------------------------------------------------------------------------
+
+class Registro:
+    """Junta as linhas do log e redesenha a caixa de vez em quando.
+
+    Antes cada linha do log redesenhava a caixa inteira, o que significava uma
+    mensagem pelo websocket por linha, carregando todo o texto acumulado. Num
+    lote grande era isso que travava a aba do navegador e derrubava a conexao.
+    Agora a tela e atualizada no maximo a cada INTERVALO_REDESENHO segundos.
+    """
+
+    def __init__(self, caixa):
+        self.caixa = caixa
+        self.linhas = []
+        self._ultimo_desenho = 0.0
+
+    def __call__(self, linha: str) -> None:
+        """Chamado pelo Logger a cada linha escrita."""
+        self.linhas.append(linha)
+        agora = time.monotonic()
+        if agora - self._ultimo_desenho >= INTERVALO_REDESENHO:
+            self.desenhar()
+
+    def desenhar(self) -> None:
+        self._ultimo_desenho = time.monotonic()
+        self.caixa.code(texto_do_registro(self.linhas), language="text")
+
+
+def texto_do_registro(linhas: list) -> str:
+    """Mostra so o fim do registro - o log completo vai inteiro no .zip."""
+    if not linhas:
+        return "O registro desta execucao aparece aqui."
+    if len(linhas) <= LINHAS_VISIVEIS_REGISTRO:
+        return "\n".join(linhas)
+    escondidas = len(linhas) - LINHAS_VISIVEIS_REGISTRO
+    aviso = ("... %s linha(s) anteriores estao no log completo, dentro do .zip"
+             % numero(escondidas))
+    return "\n".join([aviso, ""] + linhas[-LINHAS_VISIVEIS_REGISTRO:])
 
 
 # ---------------------------------------------------------------------------
@@ -189,11 +357,10 @@ def relatorio_de_teste(caminho: Path, cfg: Config) -> list:
         registrar("ERRO: %s" % info.erro)
         return linhas
 
-    carimbos = gerar_carimbos(cfg.data_inicial, cfg.data_final,
-                              cfg.intervalo_minutos, True)
-    formulas = quantidade_formulas(carimbos, True)
+    carimbos = quantidade_carimbos(cfg.data_inicial, cfg.data_final,
+                                   cfg.intervalo_minutos, True)
     registrar("Linhas de data: %d   |   Linhas de formula: %d"
-              % (len(carimbos), formulas))
+              % (carimbos, quantidade_formulas(carimbos, True)))
     registrar("")
 
     selecionadas = {n.strip().lower() for n in (cfg.abas_selecionadas or [])}
@@ -222,10 +389,11 @@ def relatorio_de_teste(caminho: Path, cfg: Config) -> list:
             registrar("    Colunas de apoio mantidas intactas (so guardam TAG): %s"
                       % ", ".join(tag.coluna for tag in aba.auxiliares))
 
-        carimbos_aba = gerar_carimbos(inicio, fim, intervalo, cfg.carimbo_final_extra)
+        carimbos_aba = quantidade_carimbos(inicio, fim, intervalo,
+                                           cfg.carimbo_final_extra)
         formulas_aba = quantidade_formulas(carimbos_aba, cfg.carimbo_final_extra)
         primeira_linha = cfg.primeira_linha_dados
-        ultima_data = primeira_linha + len(carimbos_aba) - 1
+        ultima_data = primeira_linha + carimbos_aba - 1
         em_bloco = cfg.modo_formula == MODO_BLOCO
 
         comuns = [tag for tag in aba.tags if not tag.personalizada]
@@ -276,25 +444,27 @@ def relatorio_de_teste(caminho: Path, cfg: Config) -> list:
 # Processamento
 # ---------------------------------------------------------------------------
 
-def montar_zip(saida: Path) -> bytes:
-    """Empacota as planilhas processadas e a pasta logs/ em um unico .zip."""
-    memoria = io.BytesIO()
-    with zipfile.ZipFile(memoria, "w", zipfile.ZIP_DEFLATED) as pacote:
+def montar_zip(saida: Path, destino: Path) -> Path:
+    """Empacota as planilhas processadas e a pasta logs/ num .zip EM DISCO.
+
+    Antes o .zip era montado na memoria e ainda ficava guardado na sessao -
+    duas copias do resultado inteiro em memoria, de pe ate a pessoa fechar a
+    aba. Agora ele e escrito direto no disco e a sessao guarda so o caminho.
+    """
+    with zipfile.ZipFile(destino, "w", zipfile.ZIP_DEFLATED) as pacote:
         for caminho in sorted(saida.rglob("*")):
             if caminho.is_file():
                 pacote.write(caminho, caminho.relative_to(saida).as_posix())
-    return memoria.getvalue()
+    return destino
 
 
-def processar(cfg: Config, barra, status, caixa_log):
+def processar(cfg: Config, barra, status, registro: Registro):
     """Roda o lote atualizando barra, status e registro em tempo real."""
-    linhas = []
-
-    def registrar(linha):
-        linhas.append(linha)
-        caixa_log.code("\n".join(linhas), language="text")
 
     def progresso(indice, total, nome):
+        # Cada planilha e aberta inteira na memoria. Devolver a anterior antes
+        # de abrir a proxima e o que segura o consumo no lugar num lote grande.
+        gc.collect()
         barra.progress(min(1.0, (indice - 1) / float(max(1, total))))
         status.markdown(
             tema.texto_fraco("Arquivo atual: <b>%s</b> &nbsp;&middot;&nbsp; "
@@ -302,29 +472,75 @@ def processar(cfg: Config, barra, status, caixa_log):
             unsafe_allow_html=True,
         )
 
-    with Logger(cfg.pasta_log, callback=registrar) as logger:
+    with Logger(cfg.pasta_log, callback=registro) as logger:
         resumo = processor.processar_pasta(cfg, logger, progresso=progresso)
 
     barra.progress(1.0)
-    return resumo, linhas
+    registro.desenhar()   # garante que as ultimas linhas aparecam na tela
+    return resumo
 
 
 # ---------------------------------------------------------------------------
 # Pagina
 # ---------------------------------------------------------------------------
 
-st.set_page_config(page_title=APP_NOME.title(), page_icon=":bar_chart:",
-                   layout="centered")
+st.set_page_config(page_title="Automatizador %s" % NOME_EXIBIDO,
+                   page_icon=":bar_chart:",
+                   layout="wide", initial_sidebar_state="expanded")
 st.markdown(tema.css(), unsafe_allow_html=True)
-st.markdown(tema.cabecalho("%s  v%s" % (APP_NOME, APP_VERSAO), SUBTITULO),
-            unsafe_allow_html=True)
 
+faxina_de_sessoes_antigas()
 st.session_state.setdefault("registro", [])
 st.session_state.setdefault("download", None)
 
-# --- Arquivos --------------------------------------------------------------
+# --- Barra lateral: marca, periodo e opcoes --------------------------------
+with st.sidebar:
+    st.markdown(tema.marca(NOME_EXIBIDO, "Automatizador de planilhas",
+                           APP_VERSAO), unsafe_allow_html=True)
+
+    st.markdown(tema.grupo("Periodo"), unsafe_allow_html=True)
+    data_inicial = st.date_input("Data inicial", value=DATA_PADRAO,
+                                 format="DD/MM/YYYY")
+    data_final = st.date_input("Data final", value=DATA_PADRAO,
+                               format="DD/MM/YYYY")
+    intervalo = st.number_input("Intervalo (minutos)", min_value=1,
+                                max_value=100000, value=INTERVALO_PADRAO,
+                                step=1,
+                                help="60 = 1 hora, 720 = 12 horas, 1440 = 1 dia")
+
+    st.markdown("")
+    st.markdown(tema.grupo("Opcoes"), unsafe_allow_html=True)
+    rapido = st.checkbox(
+        "Buscar tudo de uma vez", value=True,
+        help="Muito mais rapido: uma formula PIAdvCalcDat em matriz por coluna, "
+             "no lugar de uma PIAdvCalcVal por linha.",
+    )
+    calculo_manual = st.checkbox("Abrir sem calcular", value=True,
+                                 help="Os valores vem com F9 / PI DataLink Refresh.")
+    matriz_dinamica = st.checkbox(
+        "Matriz dinamica", value=True,
+        help="Recomendado - deixa as celulas editaveis no Excel.")
+    manter_contas = st.checkbox(
+        "Manter contas da planilha", value=True,
+        help="Colunas que somam duas ou mais TAGs: reaproveita a formula que ja "
+             "esta la e troca so as datas.",
+    )
+
+    st.markdown("---")
+    st.markdown(
+        tema.texto_fraco("Os arquivos enviados ficam numa pasta temporaria da "
+                         "sessao. Os originais no seu computador nunca sao "
+                         "tocados."),
+        unsafe_allow_html=True,
+    )
+
+# --- Titulo ----------------------------------------------------------------
+st.markdown(tema.titulo_pagina("Processar planilhas", SUBTITULO),
+            unsafe_allow_html=True)
+
+# --- 1. Arquivos -----------------------------------------------------------
 with st.container(border=True):
-    st.markdown(tema.titulo_secao("Arquivos"), unsafe_allow_html=True)
+    st.markdown(tema.titulo_secao("Arquivos", "1"), unsafe_allow_html=True)
     enviados = st.file_uploader(
         "Arraste aqui as planilhas, ou clique para escolher",
         type=["xlsx", "xlsm"],
@@ -336,49 +552,68 @@ with st.container(border=True):
 
     entrada = pasta_de_trabalho() / "entrada"
     arquivos = processor.listar_arquivos(entrada) if entrada.is_dir() else []
-    st.markdown(tema.texto_fraco("Arquivos enviados: <b>%d</b>" % len(arquivos)),
-                unsafe_allow_html=True)
 
-# --- Periodo ---------------------------------------------------------------
+    resumo = (resumo_dos_arquivos(assinatura, str(entrada), manter_contas)
+              if arquivos else [])
+    abas_encontradas = abas_com_tag(resumo)
+
+    if arquivos:
+        ilegiveis = [item["nome"] for item in resumo if item["erro"]]
+        st.markdown(
+            tema.texto_fraco("Prontos para processar: <b>%d</b> arquivo(s)%s"
+                             % (len(arquivos) - len(ilegiveis),
+                                (" &nbsp;&middot;&nbsp; sem leitura: %s"
+                                 % ", ".join(ilegiveis)) if ilegiveis else "")),
+            unsafe_allow_html=True,
+        )
+
+# --- Previsao, so com conta (nenhum arquivo e reaberto aqui) ---------------
+periodo_invalido = ""
+carimbos_totais = 0
+linhas_previstas = 0
+if not data_inicial or not data_final:
+    # O campo de data aceita ficar vazio; sem isto a pagina quebrava ao desenhar.
+    periodo_invalido = "preencha a data inicial e a data final"
+else:
+    try:
+        carimbos_totais = quantidade_carimbos(data_inicial, data_final,
+                                              int(intervalo), True)
+        linhas_previstas = quantidade_formulas(carimbos_totais, True)
+    except ValueError as exc:
+        periodo_invalido = str(exc)
+
+ultima_linha_excel = PRIMEIRA_LINHA_DADOS_PADRAO + carimbos_totais - 1
+excede_o_excel = ultima_linha_excel > LIMITE_LINHAS_EXCEL
+
+por_aba = {}
+problemas_aba = []
+abas_escolhidas = []
+
+# --- 2. Abas ---------------------------------------------------------------
 with st.container(border=True):
-    st.markdown(tema.titulo_secao("Periodo"), unsafe_allow_html=True)
-    col_inicio, col_fim, col_intervalo = st.columns(3)
-    data_inicial = col_inicio.date_input("Data inicial", value=DATA_PADRAO,
-                                         format="DD/MM/YYYY")
-    data_final = col_fim.date_input("Data final", value=DATA_PADRAO,
-                                    format="DD/MM/YYYY")
-    intervalo = col_intervalo.number_input("Intervalo (minutos)", min_value=1,
-                                           max_value=100000,
-                                           value=INTERVALO_PADRAO, step=1)
-    previsao = st.empty()
-
-# --- Abas ------------------------------------------------------------------
-with st.container(border=True):
-    st.markdown(tema.titulo_secao("Abas"), unsafe_allow_html=True)
-    manter_contas = st.checkbox(
-        "Manter contas da planilha (colunas que somam duas ou mais TAGs)",
-        value=True,
-        help="Reaproveita a formula que ja esta na coluna e troca so as datas.",
-    )
-
-    abas_encontradas = (abas_dos_arquivos(assinatura, str(entrada), manter_contas)
-                        if arquivos else {})
+    st.markdown(tema.titulo_secao("Abas", "2"), unsafe_allow_html=True)
 
     todas_as_abas = st.checkbox("Processar todas as abas que tiverem TAG valida",
                                 value=True)
-    abas_escolhidas = []
     if not todas_as_abas:
         abas_escolhidas = st.multiselect(
             "Abas a processar", options=sorted(abas_encontradas),
             placeholder="Escolha pelo menos uma aba",
         )
 
-    por_aba = {}
-    problemas_aba = []
-    if abas_encontradas:
+    # A tabela de periodo por aba usa um componente pesado, e quase ninguem
+    # precisa dela - por isso ela so e desenhada quando alguem pede.
+    proprio_por_aba = st.checkbox(
+        "Periodo proprio para alguma aba", value=False,
+        disabled=not abas_encontradas,
+        help="Ex.: a aba diaria de 1440 em 1440 min enquanto o resto do arquivo "
+             "continua de 5 em 5.",
+    )
+
+    if proprio_por_aba and abas_encontradas:
         st.markdown(
-            tema.texto_fraco("Cada aba pode ter periodo e intervalo proprios. "
-                             "Deixe em branco para usar o periodo geral acima."),
+            tema.texto_fraco("Preencha so o que muda. Campo em branco usa o "
+                             "periodo geral da barra lateral."),
             unsafe_allow_html=True,
         )
         linhas_tabela = [{"Aba": nome, "Data inicial": "", "Data final": "",
@@ -423,71 +658,89 @@ with st.container(border=True):
             if ajuste.personalizada:
                 por_aba[nome] = ajuste
 
+    if not abas_encontradas:
+        st.markdown(
+            tema.texto_fraco("Envie as planilhas no passo 1 para ver as abas."),
+            unsafe_allow_html=True,
+        )
+
     for problema in problemas_aba:
         st.warning(problema)
 
-# --- Opcoes ----------------------------------------------------------------
+# --- Numeros da rodada -----------------------------------------------------
+consultas_bloco = consultas_linha = 0
+if resumo and not periodo_invalido:
+    consultas_bloco, consultas_linha = estimar_consultas(
+        resumo,
+        None if todas_as_abas else abas_escolhidas,
+        formulas_de_cada_aba(abas_encontradas, data_inicial, data_final,
+                             int(intervalo), por_aba),
+        rapido,
+    )
+
+consultas = consultas_bloco if rapido else consultas_linha
+if periodo_invalido:
+    detalhe_linhas = "periodo invalido"
+    valor_linhas = "--"
+else:
+    detalhe_linhas = "%s carimbos de data" % numero(carimbos_totais)
+    valor_linhas = numero(linhas_previstas)
+
+st.markdown(tema.cartelas([
+    ("Arquivos", numero(len(arquivos)), ".xlsx e .xlsm"),
+    ("Abas com TAG", numero(len(abas_encontradas)), "no conjunto enviado"),
+    ("Linhas por arquivo", valor_linhas, detalhe_linhas),
+    ("Consultas ao PI", numero(consultas) if consultas else "--",
+     ("sem o modo rapido: %s" % numero(consultas_linha)) if rapido and consultas
+     else "no arquivo mais pesado"),
+]), unsafe_allow_html=True)
+
+if periodo_invalido:
+    st.error("Periodo invalido: %s" % periodo_invalido)
+elif excede_o_excel:
+    st.error("Este periodo geraria %s linhas e o Excel so vai ate %s. "
+             "Aumente o intervalo ou encurte o periodo."
+             % (numero(ultima_linha_excel), numero(LIMITE_LINHAS_EXCEL)))
+else:
+    st.markdown(
+        tema.texto_fraco(
+            "De %s ate %s, a cada %d minuto(s)."
+            % (datetime.combine(data_inicial, datetime.min.time())
+               .strftime("%d/%m/%Y %H:%M"),
+               ultimo_carimbo(data_inicial, data_final, int(intervalo), True)
+               .strftime("%d/%m/%Y %H:%M"),
+               int(intervalo))),
+        unsafe_allow_html=True,
+    )
+    if linhas_previstas > LIMITE_LINHAS_AVISO:
+        st.warning("Periodo grande: %s linhas por arquivo. A planilha fica "
+                   "pesada e o processamento pode faltar memoria - se puder, "
+                   "aumente o intervalo ou divida em rodadas."
+                   % numero(linhas_previstas))
+
+# --- 3. Executar -----------------------------------------------------------
 with st.container(border=True):
-    st.markdown(tema.titulo_secao("Opcoes"), unsafe_allow_html=True)
-    rapido = st.checkbox(
-        "Buscar tudo de uma vez (muito mais rapido)", value=True,
-        help="Uma formula PIAdvCalcDat em matriz por coluna, no lugar de uma "
-             "PIAdvCalcVal por linha.",
-    )
-    calculo_manual = st.checkbox("Abrir sem calcular (buscar com F9 no Excel)",
-                                 value=True)
-    matriz_dinamica = st.checkbox(
-        "Matriz dinamica (recomendado - deixa as celulas editaveis no Excel)",
-        value=True)
+    st.markdown(tema.titulo_secao("Executar", "3"), unsafe_allow_html=True)
 
-# --- Previsao (depende das opcoes acima) -----------------------------------
-try:
-    carimbos = gerar_carimbos(data_inicial, data_final, int(intervalo), True)
-    formulas = quantidade_formulas(carimbos, True)
-    texto_previsao = ("Serao geradas %d linhas (%d carimbos de data), de %s ate %s."
-                      % (formulas, len(carimbos),
-                         carimbos[0].strftime("%d/%m/%Y %H:%M"),
-                         carimbos[-1].strftime("%d/%m/%Y %H:%M")))
+    arquivo_de_teste = None
     if arquivos:
-        bloco, por_linha = estimativa_de_consultas(
-            assinatura, str(entrada), data_inicial, data_final, int(intervalo),
-            tuple(abas_escolhidas), _serializar_por_aba(por_aba),
-            manter_contas, rapido)
-        if bloco and rapido:
-            texto_previsao += ("<br>Consultas ao PI no arquivo mais pesado: "
-                               "<b>%d</b>  (sem o modo rapido seriam %d)."
-                               % (bloco, por_linha))
-        elif bloco:
-            texto_previsao += ("<br>Consultas ao PI no arquivo mais pesado: "
-                               "<b>%d</b>.  Marque 'Buscar tudo de uma vez' "
-                               "para cair para %d." % (por_linha, bloco))
-    previsao.markdown(tema.texto_fraco(texto_previsao), unsafe_allow_html=True)
-except ValueError as exc:
-    previsao.markdown(tema.texto_fraco("Periodo invalido: %s" % exc),
-                      unsafe_allow_html=True)
+        arquivo_de_teste = st.selectbox(
+            "Arquivo usado no teste",
+            options=[caminho.name for caminho in arquivos],
+            help="O teste apenas mostra o que seria feito; nada e gravado.",
+        )
 
-# --- Acoes -----------------------------------------------------------------
-# use_container_width e o unico jeito de esticar o botao que funciona em todas
-# as versoes do Streamlit: width="stretch" so existe das versoes novas em
-# diante, e nas antigas o parametro width do data_editor era em pixels.
-col_teste, col_processar = st.columns([1, 2])
-pedido_teste = col_teste.button("Testar 1 arquivo", disabled=not arquivos,
-                                use_container_width=True)
-pedido_processar = col_processar.button("PROCESSAR", type="primary",
-                                        disabled=not arquivos,
-                                        use_container_width=True)
-
-arquivo_de_teste = None
-if arquivos:
-    arquivo_de_teste = st.selectbox(
-        "Arquivo usado no teste",
-        options=[caminho.name for caminho in arquivos],
-        help="O teste apenas mostra o que seria feito; nada e gravado.",
-    )
-
-# --- Progresso -------------------------------------------------------------
-barra = st.empty()
-status = st.empty()
+    # use_container_width e o unico jeito de esticar o botao que funciona em
+    # todas as versoes do Streamlit: width="stretch" so existe das versoes novas
+    # em diante, e nas antigas o parametro width do data_editor era em pixels.
+    col_teste, col_processar = st.columns([1, 2])
+    pedido_teste = col_teste.button("Testar 1 arquivo", disabled=not arquivos,
+                                    use_container_width=True)
+    pedido_processar = col_processar.button("PROCESSAR", type="primary",
+                                            disabled=not arquivos,
+                                            use_container_width=True)
+    barra = st.empty()
+    status = st.empty()
 
 # --- Registro --------------------------------------------------------------
 with st.container(border=True, key="registro"):
@@ -497,16 +750,23 @@ with st.container(border=True, key="registro"):
 
 if pedido_teste or pedido_processar:
     saida = pasta_de_trabalho() / "saida"
-    cfg = montar_config(
-        entrada, saida, data_inicial, data_final, int(intervalo),
-        None if todas_as_abas else abas_escolhidas, por_aba,
-        rapido=rapido, calculo_manual=calculo_manual,
-        matriz_dinamica=matriz_dinamica, manter_contas=manter_contas,
-    )
-    problemas = cfg.validar()
+    cfg = None
+    problemas = []
+    if not periodo_invalido:
+        cfg = montar_config(
+            entrada, saida, data_inicial, data_final, int(intervalo),
+            None if todas_as_abas else abas_escolhidas, por_aba,
+            rapido=rapido, calculo_manual=calculo_manual,
+            matriz_dinamica=matriz_dinamica, manter_contas=manter_contas,
+        )
+        problemas = cfg.validar()
 
-    if problemas_aba:
+    if periodo_invalido:
+        st.error("Periodo invalido: %s" % periodo_invalido)
+    elif problemas_aba:
         st.error("Corrija os periodos por aba antes de continuar.")
+    elif excede_o_excel:
+        st.error("Periodo maior do que uma planilha do Excel comporta.")
     elif not todas_as_abas and not abas_escolhidas:
         st.error("Selecione pelo menos uma aba, ou marque 'Processar todas as abas'.")
     elif problemas:
@@ -515,48 +775,60 @@ if pedido_teste or pedido_processar:
     elif pedido_teste:
         caminho = next(c for c in arquivos if c.name == arquivo_de_teste)
         st.session_state.registro = relatorio_de_teste(caminho, cfg)
-        st.session_state.download = None
+        descartar_download()
     else:
         # A saida e refeita a cada execucao: assim o .zip traz so o resultado
         # desta rodada e nada fica marcado como "ja existe na pasta de saida".
+        descartar_download()
         shutil.rmtree(saida, ignore_errors=True)
         saida.mkdir(parents=True, exist_ok=True)
         try:
-            resumo, linhas = processar(cfg, barra.progress(0.0), status, caixa_log)
-            st.session_state.registro = linhas
-            st.session_state.download = (
-                "processados_%s.zip" % datetime.now().strftime("%Y%m%d_%H%M%S"),
-                montar_zip(saida),
-            )
+            registro = Registro(caixa_log)
+            resultado = processar(cfg, barra.progress(0.0), status, registro)
+            st.session_state.registro = registro.linhas
+
+            nome_zip = "processados_%s.zip" % datetime.now().strftime("%Y%m%d_%H%M%S")
+            caminho_zip = montar_zip(saida, pasta_de_trabalho() / nome_zip)
+            # O .zip ja tem tudo; manter a pasta de saida so dobraria o disco.
+            shutil.rmtree(saida, ignore_errors=True)
+            st.session_state.download = (nome_zip, str(caminho_zip))
+
             status.markdown(
                 tema.texto_fraco("%d com sucesso, %d com erro, %d ignorados (de %d)"
-                                 % (resumo.sucesso, resumo.erros, resumo.ignorados,
-                                    len(resumo.resultados))),
+                                 % (resultado.sucesso, resultado.erros,
+                                    resultado.ignorados,
+                                    len(resultado.resultados))),
                 unsafe_allow_html=True,
             )
-            if resumo.erros:
+            if resultado.erros:
                 st.warning("Concluido com erros: %d arquivo(s) falharam - "
-                           "veja o registro." % resumo.erros)
-            elif resumo.sucesso:
+                           "veja o registro." % resultado.erros)
+            elif resultado.sucesso:
                 st.success("Concluido: %d arquivo(s) processado(s) com sucesso."
-                           % resumo.sucesso)
+                           % resultado.sucesso)
             else:
                 st.info("Nenhum arquivo foi processado - veja o registro.")
         except Exception:
             falha = traceback.format_exc()
             st.session_state.registro = falha.splitlines()
-            st.session_state.download = None
+            descartar_download()
             st.error("Falha inesperada: %s" % falha.strip().splitlines()[-1])
 
 # Mostra o registro guardado (o proprio st.code ja traz o botao de copiar).
-caixa_log.code("\n".join(st.session_state.registro)
-               or "O registro desta execucao aparece aqui.", language="text")
+caixa_log.code(texto_do_registro(st.session_state.registro), language="text")
 
 if st.session_state.download:
-    nome, conteudo = st.session_state.download
-    st.download_button(
-        "Baixar arquivos processados (.zip)",
-        data=conteudo, file_name=nome, mime="application/zip", type="primary",
-        use_container_width=True,
-        help="O .zip traz as copias processadas e a pasta logs/ com o registro.",
-    )
+    nome, caminho_zip = st.session_state.download
+    caminho_zip = Path(caminho_zip)
+    if caminho_zip.is_file():
+        # O arquivo e lido do disco na hora de desenhar o botao: a sessao nao
+        # fica segurando o resultado inteiro na memoria.
+        with caminho_zip.open("rb") as pacote:
+            st.download_button(
+                "Baixar arquivos processados (.zip)",
+                data=pacote, file_name=nome, mime="application/zip",
+                type="primary", use_container_width=True,
+                help="O .zip traz as copias processadas e a pasta logs/ com o registro.",
+            )
+    else:
+        st.session_state.download = None
