@@ -13,7 +13,15 @@
 # ---------------------------------------------------------------------------
 
 # Obrigatorio - e a pagina do programa.
-streamlit>=1.41
+#
+# A versao e FIXA de proposito. Com ">=" o servidor da nuvem instalava a
+# versao mais nova enquanto o computador de quem desenvolve ficava numa
+# antiga, e a pagina quebrava so depois de publicada. Fixando, os dois rodam
+# exatamente a mesma coisa.
+#
+# Para atualizar: troque o numero, rode "pip install -r requirements.txt",
+# teste a pagina localmente e so entao publique.
+streamlit==1.64.0
 
 # ---------------------------------------------------------------------------
 # Opcionais - instale apenas se for usar os recursos abaixo

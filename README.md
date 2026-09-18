@@ -138,6 +138,12 @@ Isso instala o **Streamlit**, que é a interface do programa. O motor continua
 usando só a biblioteca padrão do Python — a única dependência obrigatória é a
 tela. (`openpyxl` é opcional, para conferir os arquivos gerados por fora.)
 
+A versão do Streamlit está **fixa** no `requirements.txt`, de propósito: com
+`>=` o servidor da nuvem instalava a versão mais nova enquanto o computador de
+quem desenvolve ficava numa antiga, e a página só quebrava depois de publicada.
+Para atualizar, troque o número, rode o `pip install` de novo, teste localmente
+e só então publique.
+
 ---
 
 ## 5. Como executar

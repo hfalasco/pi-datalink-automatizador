@@ -467,10 +467,15 @@ except ValueError as exc:
                       unsafe_allow_html=True)
 
 # --- Acoes -----------------------------------------------------------------
+# use_container_width e o unico jeito de esticar o botao que funciona em todas
+# as versoes do Streamlit: width="stretch" so existe das versoes novas em
+# diante, e nas antigas o parametro width do data_editor era em pixels.
 col_teste, col_processar = st.columns([1, 2])
-pedido_teste = col_teste.button("Testar 1 arquivo", disabled=not arquivos)
+pedido_teste = col_teste.button("Testar 1 arquivo", disabled=not arquivos,
+                                use_container_width=True)
 pedido_processar = col_processar.button("PROCESSAR", type="primary",
-                                        disabled=not arquivos)
+                                        disabled=not arquivos,
+                                        use_container_width=True)
 
 arquivo_de_teste = None
 if arquivos:
@@ -552,5 +557,6 @@ if st.session_state.download:
     st.download_button(
         "Baixar arquivos processados (.zip)",
         data=conteudo, file_name=nome, mime="application/zip", type="primary",
+        use_container_width=True,
         help="O .zip traz as copias processadas e a pasta logs/ com o registro.",
     )

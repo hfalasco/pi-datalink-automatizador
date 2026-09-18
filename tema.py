@@ -45,6 +45,17 @@ def css() -> str:
     font-family: "%(fonte)s", "Segoe UI", system-ui, sans-serif;
   }
 
+  /* Excecao obrigatoria: os icones do Streamlit sao LIGADURAS. O elemento
+     contem o texto "upload" e a fonte de icones o transforma no desenho.
+     A regra acima alcanca esses elementos (a classe deles comeca com "st-")
+     e, sem a fonte certa, o navegador escreve a palavra na tela - era o que
+     fazia aparecer "upload" escrito na caixa de envio de arquivos. */
+  [data-testid="stIconMaterial"],
+  [class*="material-symbols"],
+  .material-icons {
+    font-family: "Material Symbols Rounded", "Material Icons" !important;
+  }
+
   /* A faixa azul faz as vezes de cabecalho; a folga no topo evita que a
      barra de ferramentas do Streamlit corte o titulo. */
   .block-container { padding-top: 3.5rem; max-width: 1100px; }
@@ -85,17 +96,9 @@ def css() -> str:
   }
   .texto-fraco { color: %(fraco)s; font-size: .85rem; }
 
-  /* Botoes ocupam a largura da coluna - evita o botao solto no meio da linha.
-     Feito no CSS, e nao por parametro, porque o nome do parametro que faz isso
-     mudou entre versoes do Streamlit. */
-  .stButton button, .stDownloadButton button { width: 100%%; }
-  /* Um botao com tooltip (help=) ganha um involucro que encolhe ate o texto;
-     sem isto o width acima mede 100%% de uma caixa estreita. */
-  .stButton [data-testid="stTooltipHoverTarget"],
-  .stDownloadButton [data-testid="stTooltipHoverTarget"] {
-    width: 100%% !important;
-    flex: 1 1 auto !important;
-  }
+  /* A largura dos botoes nao fica aqui: quem encolhe e o stElementContainer,
+     varios niveis acima, e o CSS no botao nao o alcanca. Quem resolve e
+     use_container_width=True na chamada, em app.py. */
 
   /* Botao PROCESSAR: verde solido, escurecendo no hover. */
   .stButton button[kind="primary"] {
