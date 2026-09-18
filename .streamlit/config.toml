@@ -1,0 +1,18 @@
+# Tema da pagina - as mesmas cores da antiga janela Tkinter.
+# O Streamlit le este arquivo ANTES de rodar o script, entao as cores de base
+# precisam estar aqui. O restante (faixa do cabecalho, caixa do registro,
+# bordas) fica no CSS de tema.py.
+
+[theme]
+base = "light"
+primaryColor = "#1E7E4A"              # COR_DESTAQUE  - sm-green
+backgroundColor = "#EAF3EE"           # COR_FUNDO     - sm-green-lt
+secondaryBackgroundColor = "#FFFFFF"  # COR_PAINEL
+textColor = "#262626"                 # COR_TEXTO
+
+[server]
+# Planilhas de template sao pequenas; 500 MB cobre lotes grandes com folga.
+maxUploadSize = 500
+
+[browser]
+gatherUsageStats = false

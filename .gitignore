@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Streamlit
+# Segredos ficam fora do controle de versao; o config.toml do tema entra.
+.streamlit/secrets.toml
+
+# Excel
+# Arquivo temporario que o Excel cria enquanto a planilha esta aberta.
+~$*
+
+# Saida de execucoes feitas na pasta do projeto
+processados/
+logs/
+*.zip
+
+# Sistema operacional
+Thumbs.db
+desktop.ini
+.DS_Store

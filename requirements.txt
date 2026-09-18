@@ -1,0 +1,23 @@
+# Automatizador PI DataLink
+#
+# Requisito: Python 3.9 ou superior.
+#
+# O motor (core/) continua usando so a biblioteca padrao do Python
+# (zipfile, re, threading, datetime, pathlib) - de proposito: menos
+# dependencias significa menos coisas para quebrar em um computador de
+# fabrica. A unica dependencia obrigatoria e a interface.
+#
+#   pip install -r requirements.txt
+#   streamlit run app.py
+#
+# ---------------------------------------------------------------------------
+
+# Obrigatorio - e a pagina do programa.
+streamlit>=1.41
+
+# ---------------------------------------------------------------------------
+# Opcionais - instale apenas se for usar os recursos abaixo
+# ---------------------------------------------------------------------------
+
+# Para conferir os arquivos gerados por fora (abrir e ler valores/formatos):
+openpyxl>=3.1
