@@ -52,7 +52,7 @@ import tema  # noqa: E402
 from config import (APP_VERSAO, MODO_BLOCO, MODO_LINHA,  # noqa: E402
                     PRIMEIRA_LINHA_DADOS_PADRAO, Config, ConfigAba,
                     normalizar_nome)
-from core import composta, inspector, processor, writer  # noqa: E402
+from core import composta, inspector, modelo, processor, writer  # noqa: E402
 from core.formula import (intervalo_pi, montar_formula,  # noqa: E402
                           montar_formula_bloco, para_exibicao)
 from core.timeline import (quantidade_carimbos,  # noqa: E402
@@ -156,6 +156,12 @@ def gravar_enviados(enviados: list) -> tuple:
         descartar_download()
 
     return assinatura
+
+
+@st.cache_data(show_spinner=False)
+def planilha_base() -> bytes:
+    """O .xlsx do modelo em branco - tem poucos KB e e sempre o mesmo."""
+    return modelo.montar_planilha_base()
 
 
 # ---------------------------------------------------------------------------
@@ -493,11 +499,46 @@ faxina_de_sessoes_antigas()
 st.session_state.setdefault("registro", [])
 st.session_state.setdefault("download", None)
 
-# --- Barra lateral: marca, periodo e opcoes --------------------------------
+# --- Barra lateral: marca, modulos, periodo e opcoes -----------------------
 with st.sidebar:
     st.markdown(tema.marca(NOME_EXIBIDO, "Automatizador de planilhas",
                            APP_VERSAO), unsafe_allow_html=True)
 
+    st.markdown(tema.grupo("Modulos"), unsafe_allow_html=True)
+
+    # Modulo 1 - planilha base: o modelo em branco, com a estrutura que o
+    # programa reconhece ja destacada (ver core/modelo.py).
+    celulas = modelo.celulas_do_modelo()
+    with st.container(border=True):
+        st.markdown(
+            tema.modulo("Planilha base",
+                        "O modelo das nossas planilhas, com cada celula "
+                        "destacada."),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            tema.miniatura_planilha(modelo.ROTULO_DATA, modelo.ROTULO_NOME,
+                                    modelo.ROTULO_TAG),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            tema.texto_fraco(
+                "Preencha <b>%s</b> com o nome do indicador e <b>%s</b> com a "
+                "TAG do PI. Para mais indicadores, repita nas colunas C, D..."
+                % (celulas["nome"], celulas["tag"])),
+            unsafe_allow_html=True,
+        )
+        # on_click="ignore": baixar o modelo nao reexecuta a pagina inteira.
+        st.download_button(
+            "Baixar planilha base", data=planilha_base(),
+            file_name=modelo.NOME_ARQUIVO,
+            mime="application/vnd.openxmlformats-officedocument."
+                 "spreadsheetml.sheet",
+            icon=":material/download:", on_click="ignore",
+            use_container_width=True,
+        )
+
+    st.markdown("")
     st.markdown(tema.grupo("Periodo"), unsafe_allow_html=True)
     data_inicial = st.date_input("Data inicial", value=DATA_PADRAO,
                                  format="DD/MM/YYYY")

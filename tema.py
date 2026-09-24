@@ -33,6 +33,8 @@ COR_LOG_FUNDO = "#0F2436"      # variacao escura de sm-blue
 COR_LOG_TEXTO = "#DCE7F1"
 COR_TEAL = "#1A7A7A"           # sm-teal - reservado para acentos pontuais
 COR_GOLD = "#C8A000"           # sm-gold - reservado para avisos/destaques raros
+COR_GOLD_CLARO = "#FBF1CC"     # fundo da celula de TAG na planilha base
+COR_GOLD_TEXTO = "#5C4A00"     # texto sobre o dourado claro
 
 FAMILIA_FONTE = '"Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif'
 FAMILIA_MONO = '"Cascadia Mono", Consolas, "Courier New", monospace'
@@ -56,6 +58,8 @@ _VARIAVEIS = """
     --pi-azul-claro: %(subtitulo)s;
     --pi-log-fundo: %(log_fundo)s;
     --pi-log-texto: %(log_texto)s;
+    --pi-dourado-claro: %(gold_claro)s;
+    --pi-dourado-texto: %(gold_texto)s;
     --pi-fonte: %(fonte)s;
     --pi-mono: %(mono)s;
     --pi-raio: 12px;
@@ -146,6 +150,71 @@ _REGRAS = """
     text-transform: uppercase;
     margin: 4px 0 2px;
   }
+
+  /* Modulos da barra lateral: titulo e linha de apoio de cada um. */
+  .pi-modulo-nome {
+    color: var(--pi-texto);
+    font-size: .92rem;
+    font-weight: 700;
+  }
+  .pi-modulo-sub {
+    color: var(--pi-fraco);
+    font-size: .78rem;
+    line-height: 1.45;
+    margin: 2px 0 10px;
+  }
+
+  /* Miniatura da planilha base: uma grade com cabecalho de colunas (A, B) e
+     de linhas (1, 2, 3), nas mesmas cores das celulas do arquivo baixado.
+     O fundo da grade e a cor da borda; o gap de 1px vira a linha entre as
+     celulas. Feita com div, e nao com table, para o estilo de tabela do
+     proprio Streamlit nao interferir. */
+  .pi-modelo {
+    display: grid;
+    grid-template-columns: 22px 1fr 1.35fr;
+    gap: 1px;
+    background: var(--pi-borda);
+    border: 1px solid var(--pi-borda);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: .76rem;
+    margin-bottom: 8px;
+  }
+  .pi-modelo > div {
+    background: var(--pi-painel);
+    padding: 4px 7px;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .pi-modelo .pi-m-cab {
+    background: var(--pi-fundo);
+    color: var(--pi-fraco);
+    font-size: .68rem;
+    font-weight: 600;
+    justify-content: center;
+    padding: 2px 0;
+    min-height: 0;
+  }
+  .pi-modelo .pi-m-data {
+    background: var(--pi-azul);
+    color: #FFFFFF;
+    font-weight: 700;
+    justify-content: center;
+  }
+  .pi-modelo .pi-m-nome {
+    background: var(--pi-verde-claro);
+    color: var(--pi-verde-escuro);
+    font-weight: 700;
+  }
+  .pi-modelo .pi-m-tag {
+    background: var(--pi-dourado-claro);
+    color: var(--pi-dourado-texto);
+    font-weight: 700;
+  }
+  .pi-modelo .pi-m-auto { color: var(--pi-fraco); font-style: italic; }
 
   /* ----------------------------------------------------------------- */
   /* Titulo da pagina                                                   */
@@ -317,6 +386,8 @@ def css() -> str:
         "subtitulo": COR_SUBTITULO,
         "log_fundo": COR_LOG_FUNDO,
         "log_texto": COR_LOG_TEXTO,
+        "gold_claro": COR_GOLD_CLARO,
+        "gold_texto": COR_GOLD_TEXTO,
         "fonte": FAMILIA_FONTE,
         "mono": FAMILIA_MONO,
     } + _REGRAS
@@ -330,6 +401,33 @@ def marca(nome: str, descricao: str, versao: str) -> str:
         '<div class="pi-marca-sub">%s</div>'
         '<div class="pi-versao">v%s</div>'
         "</div>" % (nome, descricao, versao)
+    )
+
+
+def modulo(nome: str, descricao: str) -> str:
+    """Titulo e linha de apoio de um modulo da barra lateral."""
+    return ('<div class="pi-modulo-nome">%s</div>'
+            '<div class="pi-modulo-sub">%s</div>' % (nome, descricao))
+
+
+def miniatura_planilha(data: str, nome: str, tag: str) -> str:
+    """Grade A/B x 1/2/3 mostrando onde vai cada coisa na planilha base.
+
+    As celulas destacadas usam as mesmas cores do arquivo baixado; a linha 3
+    mostra, em cinza, o que o programa preenche sozinho.
+    """
+    return (
+        '<div class="pi-modelo">'
+        '<div class="pi-m-cab"></div>'
+        '<div class="pi-m-cab">A</div><div class="pi-m-cab">B</div>'
+        '<div class="pi-m-cab">1</div>'
+        '<div></div><div class="pi-m-nome">%s</div>'
+        '<div class="pi-m-cab">2</div>'
+        '<div class="pi-m-data">%s</div><div class="pi-m-tag">%s</div>'
+        '<div class="pi-m-cab">3</div>'
+        '<div class="pi-m-auto">datas...</div>'
+        '<div class="pi-m-auto">valores...</div>'
+        "</div>" % (nome, data, tag)
     )
 
 
