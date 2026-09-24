@@ -11,10 +11,15 @@ secondaryBackgroundColor = "#FFFFFF"  # COR_PAINEL
 textColor = "#1B2733"                 # COR_TEXTO
 
 [server]
-# Planilhas de template tem alguns KB - 50 MB por arquivo ja e muita folga.
-# O limite antigo (500 MB) nao protegia nada: um envio desse tamanho sozinho
-# estoura a memoria do servidor da nuvem e derruba a pagina para todo mundo.
-maxUploadSize = 50
+# Teto do servidor para UM arquivo enviado, em MB. Cada pagina tem o seu
+# limite, abaixo deste:
+#   * Processar planilhas - 50 MB. Templates tem alguns KB; 50 ja e folga.
+#   * Tirar formulas - 500 MB. As planilhas ja calculadas pelo PI DataLink
+#     chegam a centenas de MB, e o motor delas le o arquivo em pedacos.
+# Vale lembrar: o Streamlit guarda na memoria o arquivo enquanto ele esta na
+# caixa de envio. Num servidor pequeno (a nuvem gratuita tem por volta de
+# 1 GB), poucos envios desse tamanho ao mesmo tempo ja apertam.
+maxUploadSize = 500
 
 [browser]
 gatherUsageStats = false

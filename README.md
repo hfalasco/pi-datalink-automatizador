@@ -4,6 +4,9 @@ Preenche, em lote, a coluna de data/hora e as fórmulas `PIAdvCalcVal` do
 PI DataLink em várias planilhas Excel — sem abrir o Excel e sem alterar os
 arquivos originais.
 
+Tem também uma segunda página, **Tirar fórmulas**, que faz o caminho de volta:
+recebe a planilha já calculada e devolve uma cópia só com os números (seção 5-E).
+
 ---
 
 ## 1. O que o programa faz
@@ -167,6 +170,10 @@ passos na ordem em que são feitos.
 Na barra lateral:
 
 - **Módulos**
+  - **Processar planilhas** e **Tirar fórmulas** — os links das duas páginas
+    do programa. O da página aberta fica em verde. Período e opções continuam
+    como estavam quando você vai para a outra página e volta; os arquivos
+    enviados, não — ao voltar, envie de novo.
   - **Planilha base** — baixa o modelo em branco das nossas planilhas
     (`planilha_base_pi_datalink.xlsx`), com cada célula da estrutura
     destacada numa cor:
@@ -524,7 +531,7 @@ consulta o PI) - confira se o numero de linhas ainda bate
 
 ## 5-D. O que a página faz para não cair
 
-O Streamlit roda o arquivo `app.py` **inteiro** a cada clique, tecla digitada ou
+O Streamlit roda a página **inteira** (`app.py` e a página aberta) a cada clique, tecla digitada ou
 data trocada. Com a versão anterior, cada um desses gestos:
 
 - reabria todas as planilhas enviadas — duas vezes, uma para listar as abas e
@@ -547,7 +554,7 @@ O que mudou:
 | `.zip` do resultado na memória **e** na sessão | `.zip` escrito em disco; a sessão guarda só o caminho |
 | Pasta de saída mantida junto com o `.zip` | Apagada assim que o `.zip` fica pronto |
 | Pastas temporárias acumulando para sempre | Apagadas depois de 6 h paradas |
-| Envio de até 500 MB por arquivo | 50 MB — o suficiente com folga para um template |
+| Envio de até 500 MB por arquivo | 50 MB — o suficiente com folga para um template (a página *Tirar fórmulas* aceita 500 MB, ver 5-E) |
 
 Medido com 20 planilhas e período de um ano de 1 em 1 minuto: o custo de trocar
 uma data caiu de cerca de **1,4 s** (1 s reabrindo arquivos + 0,4 s montando
@@ -562,6 +569,72 @@ datas) para menos de **1 ms**.
 
 Em ambos os casos a saída é a mesma: aumentar o intervalo ou dividir o período
 em mais de uma rodada.
+
+---
+
+## 5-E. Tirar fórmulas (deixar só os números)
+
+A página **Tirar fórmulas** (link em *Módulos*, na barra lateral) é a versão em
+página do antigo `tirar_formulas.py`: você envia a planilha, ela troca cada
+fórmula pelo valor que o Excel já calculou e devolve uma cópia só com os
+números, com o sufixo `_SEM_FORMULAS` no nome (`Safra.xlsx` →
+`Safra_SEM_FORMULAS.xlsx`).
+
+### Antes de enviar
+
+O programa usa o valor que o Excel **gravou no arquivo** — ele não calcula
+nada. Então a planilha precisa ter sido:
+
+1. aberta no Excel, com o PI DataLink atualizado;
+2. **salva** (`Ctrl+S`).
+
+Fórmula sem valor gravado vira célula vazia. O registro avisa quantas ficaram
+assim em cada arquivo (`ATENCAO: ... ficaram VAZIAS`), e a cartela *Fórmulas
+trocadas* também. Uma planilha que acabou de sair da página *Processar
+planilhas* ainda não foi calculada — abra, atualize e salve antes.
+
+### Na página
+
+1. **Arquivos** — arraste as planilhas (até **500 MB** cada).
+2. **Executar** — **TIRAR FORMULAS** converte os arquivos **um de cada vez**,
+   com barra de progresso e registro.
+
+Com **um** arquivo, o botão de download entrega a própria planilha. Com
+**vários**, entrega um `.zip` com as planilhas e a pasta `logs/`.
+
+### O que muda no arquivo
+
+Só as fórmulas. Diferente do script antigo, que montava uma planilha nova com
+openpyxl e levava só valor, formato de número, mesclagem, largura e painel
+congelado, aqui o arquivo é copiado parte por parte (o mesmo princípio da
+seção 3) e todo o resto fica como estava: cores, fontes, bordas, gráficos,
+formatação condicional, abas ocultas.
+
+| Célula antes | Depois |
+|---|---|
+| Fórmula com número gravado | o número |
+| Fórmula com texto gravado | o texto |
+| Fórmula com erro gravado (`#N/A`) | o erro, como valor |
+| Fórmula sem valor gravado | célula vazia (o formato fica) |
+| Matriz do PI (`PIAdvCalcDat` em B3, derramando até B290) | os números de B3 a B290 |
+
+Também sai o `xl/calcChain.xml`, o cache da ordem de cálculo — sem fórmulas ele
+apontaria para contas que não existem mais.
+
+### Arquivos grandes
+
+As planilhas calculadas chegam a centenas de MB, e o script antigo abria cada
+uma **duas vezes** com openpyxl, uma delas inteira na memória. Aqui cada aba é
+lida em pedaços de 8 MB, então a memória usada não depende do tamanho do
+arquivo. Medido numa aba de 337 MB de XML com 2,4 milhões de fórmulas:
+**13,5 s e 75 MB de memória**. Numa planilha de 20.000 linhas, o script levou
+8 s e a página 1 s — com os mesmos valores, célula a célula.
+
+O limite de envio desta página é 500 MB por arquivo (`LIMITE_ENVIO_MB` em
+`paginas/tirar_formulas.py` e `maxUploadSize` em `.streamlit/config.toml`). O
+que pesa agora é o próprio Streamlit, que guarda na memória o arquivo enquanto
+ele está na caixa de envio: num servidor pequeno, como a nuvem gratuita, poucos
+envios desse tamanho ao mesmo tempo já apertam.
 
 ---
 
@@ -689,7 +762,11 @@ Dois pontos antes de publicar:
 
 ```
 pi_datalink_automatizador/
-    app.py                  a página inteira (Streamlit) - ponto de entrada
+    app.py                  ponto de entrada: tema, marca, módulos e navegação
+    comum.py                o que as duas páginas usam igual (envio, registro, .zip)
+    paginas/
+        processar.py        página Processar planilhas
+        tirar_formulas.py   página Tirar fórmulas (seção 5-E)
     tema.py                 paleta de cores e CSS
     config.py               toda a configuração e validação
     logger.py               log em arquivo e na tela
@@ -707,6 +784,7 @@ pi_datalink_automatizador/
         writer.py           motor de escrita (cirurgia no XML)
         processor.py        orquestração pasta -> arquivos -> abas
         modelo.py           planilha base em branco (módulo da barra lateral)
+        sem_formulas.py     troca as fórmulas pelos valores gravados (seção 5-E)
 ```
 
 Cada módulo tem uma responsabilidade só. Trocar a fórmula do PI mexe apenas em
