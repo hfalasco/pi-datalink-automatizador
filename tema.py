@@ -58,6 +58,7 @@ _VARIAVEIS = """
     --pi-azul-claro: %(subtitulo)s;
     --pi-log-fundo: %(log_fundo)s;
     --pi-log-texto: %(log_texto)s;
+    --pi-dourado: %(gold)s;
     --pi-dourado-claro: %(gold_claro)s;
     --pi-dourado-texto: %(gold_texto)s;
     --pi-fonte: %(fonte)s;
@@ -151,6 +152,26 @@ _REGRAS = """
     margin: 4px 0 2px;
   }
 
+  /* Links das paginas, no topo dos Modulos. O da pagina aberta fica verde
+     (app.py poe esse link num container com a chave "link_ativo"). */
+  [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] {
+    border-radius: 9px;
+    padding: 7px 10px;
+  }
+  .st-key-paginas { gap: 2px; margin-bottom: 6px; }
+  [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"]:hover {
+    background: var(--pi-fundo);
+  }
+  .st-key-link_ativo [data-testid="stPageLink-NavLink"],
+  .st-key-link_ativo [data-testid="stPageLink-NavLink"]:hover {
+    background: var(--pi-verde-claro);
+  }
+  .st-key-link_ativo [data-testid="stPageLink-NavLink"] span,
+  .st-key-link_ativo [data-testid="stPageLink-NavLink"] p {
+    color: var(--pi-verde-escuro) !important;
+    font-weight: 700;
+  }
+
   /* Modulos da barra lateral: titulo e linha de apoio de cada um. */
   .pi-modulo-nome {
     color: var(--pi-texto);
@@ -216,6 +237,28 @@ _REGRAS = """
   }
   .pi-modelo .pi-m-auto { color: var(--pi-fraco); font-style: italic; }
 
+  /* Passo a passo numerado da barra lateral (pagina Tirar formulas). */
+  .pi-passos > div {
+    display: flex;
+    gap: 9px;
+    color: var(--pi-fraco);
+    font-size: .82rem;
+    line-height: 1.45;
+    margin: 6px 0 8px;
+  }
+  .pi-passos .pi-passo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 20px;
+    height: 20px;
+    border-radius: 6px;
+    background: var(--pi-verde-claro);
+    color: var(--pi-verde);
+    font-size: .72rem;
+    font-weight: 700;
+  }
+
   /* ----------------------------------------------------------------- */
   /* Titulo da pagina                                                   */
   /* ----------------------------------------------------------------- */
@@ -274,6 +317,18 @@ _REGRAS = """
     font-weight: 700;
   }
   .texto-fraco { color: var(--pi-fraco); font-size: .85rem; line-height: 1.5; }
+
+  /* Aviso que a pessoa precisa ler antes de enviar - raro, dai o dourado. */
+  .pi-aviso {
+    background: var(--pi-dourado-claro);
+    border-left: 3px solid var(--pi-dourado);
+    border-radius: 8px;
+    color: var(--pi-dourado-texto);
+    font-size: .85rem;
+    line-height: 1.5;
+    padding: 10px 13px;
+    margin: 0 0 12px;
+  }
 
   /* ----------------------------------------------------------------- */
   /* Cartelas de numeros                                                */
@@ -386,6 +441,7 @@ def css() -> str:
         "subtitulo": COR_SUBTITULO,
         "log_fundo": COR_LOG_FUNDO,
         "log_texto": COR_LOG_TEXTO,
+        "gold": COR_GOLD,
         "gold_claro": COR_GOLD_CLARO,
         "gold_texto": COR_GOLD_TEXTO,
         "fonte": FAMILIA_FONTE,
@@ -452,6 +508,20 @@ def titulo_secao(texto: str, passo: str = "") -> str:
 def texto_fraco(texto: str) -> str:
     """Texto de apoio em cinza."""
     return '<div class="texto-fraco">%s</div>' % texto
+
+
+def aviso(texto: str) -> str:
+    """Faixa dourada para o que nao pode passar despercebido."""
+    return '<div class="pi-aviso">%s</div>' % texto
+
+
+def passos(itens) -> str:
+    """Lista numerada curta, no estilo dos numeros de passo dos cartoes."""
+    corpo = "".join(
+        '<div><span class="pi-passo">%d</span><span>%s</span></div>'
+        % (numero, texto) for numero, texto in enumerate(itens, start=1)
+    )
+    return '<div class="pi-passos">%s</div>' % corpo
 
 
 def cartelas(itens) -> str:

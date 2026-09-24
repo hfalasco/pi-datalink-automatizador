@@ -141,9 +141,17 @@ def ler_strings_compartilhadas(pacote: PacoteXlsx) -> list:
 
 def mapear_abas(pacote: PacoteXlsx) -> list:
     """Devolve [(nome, parte, oculta)] na ordem em que aparecem na pasta."""
-    workbook = pacote.texto("xl/workbook.xml")
-    rels = pacote.texto("xl/_rels/workbook.xml.rels")
+    return mapear_abas_xml(pacote.texto("xl/workbook.xml"),
+                           pacote.texto("xl/_rels/workbook.xml.rels"),
+                           pacote.partes)
 
+
+def mapear_abas_xml(workbook: str, rels: str, partes) -> list:
+    """O mesmo que mapear_abas, a partir do XML das duas partes.
+
+    Serve a quem nao quer carregar o pacote inteiro so para saber o nome das
+    abas (ver core/sem_formulas.py). partes = nomes das partes do arquivo.
+    """
     destino_por_id = {}
     for relacao in RE_RELACAO.finditer(rels):
         trecho = relacao.group(0)
@@ -166,7 +174,7 @@ def mapear_abas(pacote: PacoteXlsx) -> list:
         if not nome or not rid:
             continue
         parte = destino_por_id.get(rid.group(1))
-        if not parte or parte not in pacote.partes:
+        if not parte or parte not in partes:
             continue
         estado = RE_ESTADO.search(trecho)
         abas.append(
