@@ -160,12 +160,27 @@ endereço que aparece no terminal. Para encerrar, feche a aba e pressione
 
 ### Passo a passo na página
 
-A página tem duas partes: a **barra lateral**, à esquerda, com o que muda de
-rodada para rodada (período e opções), e o **miolo**, com os três passos na
-ordem em que são feitos.
+A página tem duas partes: a **barra lateral**, à esquerda, com os módulos e o
+que muda de rodada para rodada (período e opções), e o **miolo**, com os três
+passos na ordem em que são feitos.
 
 Na barra lateral:
 
+- **Módulos**
+  - **Planilha base** — baixa o modelo em branco das nossas planilhas
+    (`planilha_base_pi_datalink.xlsx`), com cada célula da estrutura
+    destacada numa cor:
+
+    | Célula | Conteúdo | Cor |
+    |---|---|---|
+    | `A2` | `Data` — rótulo da coluna de datas | azul |
+    | `B1` | `Nome` — nome do indicador | verde |
+    | `B2` | `Tag` — TAG do PI | dourado |
+
+    Troque `Nome` e `Tag` pelos valores reais; para mais indicadores, repita o
+    par nas colunas C, D, E… A coluna A, da linha 3 para baixo, fica vazia — é
+    o programa que preenche as datas e as fórmulas. A barra lateral mostra uma
+    miniatura da planilha com as mesmas cores.
 - **Período** — data inicial, data final e intervalo.
 - **Opções** — *Buscar tudo de uma vez* (modo rápido), *Abrir sem calcular*,
   *Matriz dinâmica* e *Manter contas da planilha*. Todas já vêm marcadas nos
@@ -691,6 +706,7 @@ pi_datalink_automatizador/
         styles.py           criação segura de formato de data quando não existe
         writer.py           motor de escrita (cirurgia no XML)
         processor.py        orquestração pasta -> arquivos -> abas
+        modelo.py           planilha base em branco (módulo da barra lateral)
 ```
 
 Cada módulo tem uma responsabilidade só. Trocar a fórmula do PI mexe apenas em
