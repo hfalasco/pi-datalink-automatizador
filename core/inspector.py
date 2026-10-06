@@ -4,6 +4,8 @@
 Descobre, sem alterar nada:
   * quais abas existem e qual parte XML corresponde a cada uma;
   * quais colunas possuem TAG valida na linha configurada;
+  * quais colunas trazem uma EXPRESSAO DE FILTRO no lugar da TAG - essas saem
+    com PITimeFilter, contando o tempo em que a condicao foi verdadeira;
   * quais colunas combinam MAIS DE UMA TAG na mesma celula (ver core/composta.py)
     e quais colunas existem apenas para guardar a TAG dessas contas;
   * o estilo das celulas de data e de formula (para reaproveitar formatacao);
@@ -56,6 +58,10 @@ class TagInfo:
     personalizada: object = None
     # Texto das TAGs usadas por essa formula, na ordem em que aparecem.
     fontes: list = field(default_factory=list)
+    # True quando a celula da linha de TAGs guarda uma EXPRESSAO DE FILTRO no
+    # lugar da TAG. A coluna sai com PITimeFilter: quanto tempo a condicao foi
+    # verdadeira em cada intervalo, e nao a media de uma TAG.
+    filtro: bool = False
 
     @property
     def composta(self) -> bool:
@@ -104,6 +110,11 @@ class AbaInfo:
     @property
     def personalizadas(self) -> list:
         return [tag for tag in self.tags if tag.personalizada]
+
+    @property
+    def filtradas(self) -> list:
+        """Colunas de tempo por filtro geradas pelo programa (PITimeFilter)."""
+        return [tag for tag in self.tags if tag.filtro and not tag.personalizada]
 
 
 @dataclass
@@ -328,9 +339,17 @@ def _analisar_formulas_existentes(nome_da_aba: str, celulas_dados: dict,
 
 
 def _tags_de_origem(analise, celulas_tag: dict, strings: list) -> list:
-    """Texto das TAGs que a formula usa, para mostrar nos relatorios."""
+    """Texto do que cada chamada consulta, para mostrar nos relatorios.
+
+    Normalmente e a TAG. Nas chamadas da familia PITimeFilter e a expressao de
+    filtro - que pode estar escrita na propria formula ou guardada numa celula,
+    caso em que o texto da celula e que aparece.
+    """
     textos = []
-    for referencia in analise.celulas_tag:
+    for chamada in analise.chamadas:
+        referencia = chamada.tag or chamada.expressao
+        if not referencia:
+            continue
         _, coluna, _linha = composta.referencia_de_celula(referencia)
         indice = _indice_de_coluna(coluna) if coluna else None
         celula = celulas_tag.get(indice) if indice else None
@@ -388,8 +407,17 @@ def inspecionar_aba(pacote: PacoteXlsx, nome: str, parte: str, oculta: bool,
 
         celula_xml = celulas_tag.get(indice, "")
         texto = valor_da_celula(celula_xml, strings) if celula_xml else ""
-        tag_propria = bool(celula_xml) and e_tag_valida(
-            texto, _tipo_da_celula(celula_xml), cfg
+        tipo = _tipo_da_celula(celula_xml) if celula_xml else ""
+        # Celula com expressao de filtro no lugar da TAG: a coluna vira tempo
+        # por filtro. A checagem vem antes de e_tag_valida porque um padrao_tag
+        # restrito a caminhos PI (^\\\\) recusaria a expressao.
+        filtro = bool(
+            cfg.tempo_filtrado
+            and tipo in TIPOS_TEXTO
+            and composta.e_expressao_de_filtro(texto)
+        )
+        tag_propria = bool(celula_xml) and (
+            filtro or e_tag_valida(texto, tipo, cfg)
         )
         analise = personalizadas.get(indice)
 
@@ -420,6 +448,7 @@ def inspecionar_aba(pacote: PacoteXlsx, nome: str, parte: str, oculta: bool,
                 estilo_dados=estilo.group(1) if estilo else None,
                 personalizada=analise,
                 fontes=_tags_de_origem(analise, celulas_tag, strings) if analise else [],
+                filtro=filtro,
             )
         )
 

@@ -81,6 +81,34 @@ ARGUMENTOS_FIXOS_PADRAO = (
     '""',
 )
 
+# ---------------------------------------------------------------------------
+# Tempo por filtro (PITimeFilter)
+# ---------------------------------------------------------------------------
+# A familia PIAdvCalc responde "qual foi a media da TAG no intervalo". A familia
+# PITimeFilter responde outra pergunta: "quanto TEMPO, dentro do intervalo, a
+# condicao foi verdadeira" - quantas horas a valvula ficou aberta, quantas horas
+# a moenda ficou moendo. Por isso o 1o argumento nao e uma TAG, e sim uma
+# expressao de filtro:
+#
+#   'USM-XV_411010'="Aberta" AND 'USM-XV_411012'="Aberta"
+#
+# Assinaturas lidas do proprio add-in (C:\Program Files\PIPC\Excel\pipc64.xll):
+#
+#   PITimeFilterVal   exp, stime, etime,           timeunites, outcode, root path
+#   PITimeFilter      exp, stime, etime, interval, timeunites, outcode, root path
+#
+# Mesma simetria das outras: inicio no 2o argumento, fim no 3o, e a versao que
+# devolve a coluna inteira ganha "interval" na 4a posicao. Repare que aqui o
+# nome e ao contrario do resto - quem devolve UM valor e que leva o sufixo
+# "Val"; PITimeFilter (sem sufixo) e a que devolve todos os intervalos.
+FUNCAO_TEMPO_FILTRADO_PADRAO = "PITimeFilterVal"
+FUNCAO_TEMPO_FILTRADO_BLOCO_PADRAO = "PITimeFilter"
+
+# Em que unidade o tempo volta. "hours" num intervalo de 1h devolve algo entre
+# 0 e 1; "minutes" no mesmo intervalo, algo entre 0 e 60.
+UNIDADES_TEMPO_FILTRADO = ("seconds", "minutes", "hours", "days")
+UNIDADE_TEMPO_FILTRADO_PADRAO = "hours"
+
 # Formato de data/hora aplicado quando a coluna de data ainda nao possui estilo.
 FORMATO_DATA_PADRAO = "dd/mm/yyyy hh:mm"
 
@@ -188,6 +216,17 @@ class Config:
     argumentos_fixos: tuple[str, ...] = ARGUMENTOS_FIXOS_PADRAO
     formula_matriz: bool = True   # grava como formula de matriz (igual ao DataLink)
 
+    # --- tempo por filtro (PITimeFilter) ----------------------------------
+    # True = uma celula da linha de TAGs que traz uma EXPRESSAO DE FILTRO no
+    # lugar da TAG ('USM-XV_411010'="Aberta") faz a coluna sair com
+    # PITimeFilter: quanto tempo a condicao foi verdadeira em cada intervalo.
+    # A expressao continua morando na celula - a formula so aponta para ela,
+    # entao editar a celula no Excel muda o resultado sem refazer nada.
+    tempo_filtrado: bool = True
+    funcao_tempo_filtrado: str = FUNCAO_TEMPO_FILTRADO_PADRAO
+    funcao_tempo_filtrado_bloco: str = FUNCAO_TEMPO_FILTRADO_BLOCO_PADRAO
+    unidade_tempo_filtrado: str = UNIDADE_TEMPO_FILTRADO_PADRAO
+
     # MODO_BLOCO = uma formula PIAdvCalcDat por coluna (muito menos consultas);
     # MODO_LINHA = uma formula PIAdvCalcVal por linha (comportamento original).
     modo_formula: str = MODO_BLOCO
@@ -233,6 +272,27 @@ class Config:
 
     # --- log --------------------------------------------------------------
     pasta_log: Path | None = None
+
+    # ------------------------------------------------------------------
+    @property
+    def argumentos_tempo_filtrado(self) -> tuple:
+        """Argumentos que vem depois do fim (ou do intervalo) no PITimeFilter."""
+        return ('"%s"' % self.unidade_tempo_filtrado, "0", '""')
+
+    def receita_da_coluna(self, tempo_filtrado: bool) -> tuple:
+        """(funcao por linha, funcao em matriz, argumentos fixos) de uma coluna.
+
+        E o unico ponto em que o programa escolhe entre as duas familias: a
+        coluna comum sai com PIAdvCalcVal/Dat e a coluna de tempo por filtro
+        sai com PITimeFilterVal/PITimeFilter.
+        """
+        if tempo_filtrado:
+            return (
+                self.funcao_tempo_filtrado,
+                self.funcao_tempo_filtrado_bloco,
+                self.argumentos_tempo_filtrado,
+            )
+        return (self.funcao_pi, self.funcao_pi_bloco, self.argumentos_fixos)
 
     # ------------------------------------------------------------------
     def config_da_aba(self, nome_aba: str) -> ConfigAba:
@@ -289,6 +349,12 @@ class Config:
             erros.append(
                 "Modo das colunas compostas invalido: %r (use %s)."
                 % (self.modo_composta, " ou ".join(MODOS_COMPOSTA))
+            )
+
+        if self.unidade_tempo_filtrado not in UNIDADES_TEMPO_FILTRADO:
+            erros.append(
+                "Unidade de tempo invalida: %r (use %s)."
+                % (self.unidade_tempo_filtrado, ", ".join(UNIDADES_TEMPO_FILTRADO))
             )
 
         if self.linha_tags < 1:

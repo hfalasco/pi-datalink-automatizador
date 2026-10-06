@@ -4,7 +4,7 @@
 A formula gravada no arquivo tem esta forma (exatamente como o proprio
 PI DataLink grava):
 
-    PIAdvCalcVal(B$2,$A3,$A4,"average (time-weighted)","time-weighted",0,1,0,"")
+    PIAdvCalcdat(B$2,$A3,$A4,"average (time-weighted)","time-weighted",0,1,0,"")
 
 Observacoes importantes:
 

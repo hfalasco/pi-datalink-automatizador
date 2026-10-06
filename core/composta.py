@@ -43,28 +43,44 @@ from dataclasses import dataclass, field
 #   PIAdvCalcExpDat   expression, stime, etime, interval, modestring, weightmode, sampmode, sampfreq, ...
 #   PIAdvCalcExpFilVal expression, stime, etime,           filterexp, modestring, ...
 #   PIAdvCalcExpFilDat expression, stime, etime, interval, filterexp, modestring, ...
+#   PITimeFilterVal   exp, stime, etime,           timeunites, outcode, root path
+#   PITimeFilter      exp, stime, etime, interval, timeunites, outcode, root path
 #
-# Em TODAS elas o inicio e o 2o argumento, o fim e o 3o, e a diferenca entre
-# "Val" e "Dat" e exatamente um "interval" na 4a posicao. E por isso que o
+# Em TODAS elas o inicio e o 2o argumento, o fim e o 3o, e a diferenca entre as
+# duas versoes e exatamente um "interval" na 4a posicao. E por isso que o
 # programa consegue trocar uma pela outra sem tocar no resto da conta - o
 # filtro, o modo, o sampfreq: tudo continua como o usuario montou.
+#
+# A familia PITimeFilter foge do padrao em duas coisas, e as duas estao
+# resolvidas na classe Assinatura:
+#
+#   * o nome e invertido - quem devolve UM valor leva o sufixo "Val", e quem
+#     devolve a coluna inteira e a PITimeFilter, sem sufixo;
+#   * o 1o argumento nao e uma TAG, e sim uma EXPRESSAO DE FILTRO. Ela pode vir
+#     escrita na propria formula ('USM-XV_411010'="Aberta") ou, melhor, como
+#     referencia a celula que a guarda (F$2) - e assim que o programa grava.
 FUNCAO_VALOR = "PIAdvCalcVal"
 FUNCAO_BLOCO = "PIAdvCalcDat"
+FUNCAO_TEMPO = "PITimeFilterVal"
+FUNCAO_TEMPO_BLOCO = "PITimeFilter"
 
 
 @dataclass(frozen=True)
 class Assinatura:
     """Como cada funcao do PI aparece nos dois modos de gravacao."""
 
-    valor: str          # nome da versao "um valor por linha"
-    bloco: str          # nome da versao "coluna inteira" (matriz)
+    valor: str           # nome da versao "um valor por linha"
+    bloco: str           # nome da versao "coluna inteira" (matriz)
     tem_intervalo: bool  # a funcao escrita na planilha ja recebe "interval"
+    # True quando o 1o argumento e uma expressao de filtro, e nao uma TAG
+    # (familia PITimeFilter). Muda so a leitura: a reescrita e a mesma.
+    expressao: bool = False
 
 
-def _par(valor: str, bloco: str) -> dict:
+def _par(valor: str, bloco: str, expressao: bool = False) -> dict:
     return {
-        valor.lower(): Assinatura(valor, bloco, False),
-        bloco.lower(): Assinatura(valor, bloco, True),
+        valor.lower(): Assinatura(valor, bloco, False, expressao),
+        bloco.lower(): Assinatura(valor, bloco, True, expressao),
     }
 
 
@@ -96,6 +112,15 @@ for _nomes in (
     ("PIAdvCalcExpFilVal", "PIAdvCalcExpFilDat"),
 ):
     ASSINATURAS.update(_par(*_nomes))
+ASSINATURAS.update(_par(FUNCAO_TEMPO, FUNCAO_TEMPO_BLOCO, expressao=True))
+
+# Formulas que o proprio programa sabe gerar do zero. Reconhece-las evita
+# preserva-las como se fossem conta do usuario: a coluna volta a ser comum e
+# acompanha as opcoes da rodada (unidade de tempo, modo bloco...).
+FUNCOES_PADRAO = frozenset(
+    nome.lower()
+    for nome in (FUNCAO_VALOR, FUNCAO_BLOCO, FUNCAO_TEMPO, FUNCAO_TEMPO_BLOCO)
+)
 
 # Posicao do argumento "interval": logo depois do fim, em todas as funcoes.
 POSICAO_INTERVALO = 3
@@ -112,6 +137,29 @@ RE_REFERENCIA = re.compile(
     r"^\s*(?P<prefixo>(?:'[^']*'|[A-Za-z0-9_.]+)!)?"
     r"\$?(?P<coluna>[A-Za-z]{1,3})\$?(?P<linha>\d+)\s*$"
 )
+
+# Comparacao dentro de uma expressao de filtro do PI: =, <>, >=, <, ...
+RE_COMPARACAO = re.compile(r"(?:<>|>=|<=|[=<>])")
+
+
+def e_expressao_de_filtro(texto: str) -> bool:
+    """True quando o texto parece uma expressao de filtro, e nao uma TAG.
+
+    E assim que uma coluna e marcada como "tempo por filtro": em vez da TAG, a
+    celula da linha de TAGs guarda a condicao, no formato do proprio PI -
+
+        'USM-XV_411010'="Aberta" AND 'USM-XV_411012'="Aberta"
+
+    A regra e de proposito restritiva: exige uma comparacao E uma aspa (simples
+    ou dupla). Um caminho de TAG - \\\\AZR-PIDA130.AD.DOM\\USM-FT_411012 - nao tem
+    nenhuma das duas, entao nunca e confundido com uma expressao.
+    """
+    limpo = (texto or "").strip()
+    if not limpo:
+        return False
+    if APOSTROFO not in limpo and ASPAS not in limpo:
+        return False
+    return bool(RE_COMPARACAO.search(limpo))
 
 
 @dataclass
@@ -138,9 +186,19 @@ class ChamadaPI:
         return bool(self.assinatura.bloco)
 
     @property
-    def tag(self) -> str:
-        """Primeiro argumento: a referencia da celula que guarda a TAG."""
+    def primeiro(self) -> str:
+        """Primeiro argumento, seja ele a TAG ou a expressao de filtro."""
         return self.argumentos[0].strip() if self.argumentos else ""
+
+    @property
+    def tag(self) -> str:
+        """Referencia da celula que guarda a TAG. Vazio no PITimeFilter."""
+        return "" if self.assinatura.expressao else self.primeiro
+
+    @property
+    def expressao(self) -> str:
+        """Expressao de filtro do PITimeFilter: um texto ou a celula que o guarda."""
+        return self.primeiro if self.assinatura.expressao else ""
 
 
 @dataclass
@@ -163,8 +221,17 @@ class FormulaPersonalizada:
 
     @property
     def celulas_tag(self) -> list:
-        """Referencias das celulas de TAG usadas, na ordem em que aparecem."""
-        return [chamada.tag for chamada in self.chamadas]
+        """Referencias das celulas de TAG usadas, na ordem em que aparecem.
+
+        Chamadas da familia PITimeFilter nao entram: o 1o argumento delas e a
+        expressao de filtro (ver a propriedade expressoes).
+        """
+        return [chamada.tag for chamada in self.chamadas if chamada.tag]
+
+    @property
+    def expressoes(self) -> list:
+        """Expressoes de filtro usadas pelas chamadas PITimeFilter."""
+        return [chamada.expressao for chamada in self.chamadas if chamada.expressao]
 
     @property
     def celulas_usadas(self) -> list:
@@ -354,21 +421,24 @@ def _prefixo_de_aba(argumento: str) -> str:
 def e_formula_padrao(analise, coluna: str, linha_tags: int) -> bool:
     """True quando a formula e exatamente a que o programa geraria sozinho.
 
-    Ou seja: uma unica chamada, nada em volta dela, e a TAG lida da propria
-    coluna na linha de TAGs. Nesses casos nada precisa ser preservado - a
-    formula normal do programa reproduz a coluna (e ainda corrige referencias
-    de tempo travadas que porventura existam).
+    Ou seja: uma unica chamada, nada em volta dela, e a TAG (ou a expressao de
+    filtro, no PITimeFilter) lida da propria coluna na linha de TAGs. Nesses
+    casos nada precisa ser preservado - a formula normal do programa reproduz a
+    coluna (e ainda corrige referencias de tempo travadas que porventura
+    existam).
     """
     if not analise or len(analise.chamadas) != 1:
         return False
     chamada = analise.chamadas[0]
-    if chamada.nome.lower() not in (FUNCAO_VALOR.lower(), FUNCAO_BLOCO.lower()):
+    if chamada.nome.lower() not in FUNCOES_PADRAO:
         # PIAdvCalcFilVal e outras variantes tem argumentos que o programa nao
         # sabe montar (o filtro, por exemplo). A formula da planilha e que vale.
         return False
     if chamada.inicio != 0 or chamada.fim != len(analise.original):
         return False
-    _, coluna_tag, linha = referencia_de_celula(chamada.tag)
+    # chamada.primeiro, e nao chamada.tag: no PITimeFilter o que aponta para a
+    # celula da coluna e a expressao de filtro.
+    _, coluna_tag, linha = referencia_de_celula(chamada.primeiro)
     return coluna_tag == coluna.upper() and linha == linha_tags
 
 

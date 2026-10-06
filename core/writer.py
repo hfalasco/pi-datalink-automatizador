@@ -57,6 +57,7 @@ class ResultadoAba:
     compostas: int = 0           # colunas que combinam mais de uma TAG
     personalizadas: int = 0      # colunas com conta propria preservada
     auxiliares: int = 0          # colunas que so guardam TAG (mantidas intactas)
+    filtradas: int = 0           # colunas de tempo por filtro (PITimeFilter)
     amostra: list = field(default_factory=list)
 
 
@@ -242,6 +243,7 @@ def reescrever_aba(pacote: PacoteXlsx, aba: AbaInfo, carimbos: list, cfg,
     resultado.compostas = sum(1 for tag in proprias if tag.composta)
     resultado.personalizadas = len(proprias)
     resultado.auxiliares = len(aba.auxiliares)
+    resultado.filtradas = sum(1 for tag in comuns if tag.filtro)
 
     # --- passo 1: coluna de data (identica nos dois modos) ---------------
     for deslocamento, carimbo in enumerate(carimbos):
@@ -285,15 +287,19 @@ def reescrever_aba(pacote: PacoteXlsx, aba: AbaInfo, carimbos: list, cfg,
                 ref_matriz = "%s%d:%s%d" % (
                     tag.coluna, primeira, tag.coluna, ultima_linha_formula
                 )
+            # A coluna de tempo por filtro sai com PITimeFilter no lugar de
+            # PIAdvCalcDat; o 1o argumento continua sendo a celula da linha de
+            # TAGs, so que ela guarda a expressao de filtro.
+            _, funcao_bloco, argumentos = cfg.receita_da_coluna(tag.filtro)
             formula_xml = montar_formula_bloco_xml(
                 tag.coluna,
                 cfg.linha_tags,
                 primeira,
                 primeira + total_carimbos - 1,
                 cfg.coluna_data,
-                cfg.funcao_pi_bloco,
+                funcao_bloco,
                 intervalo_minutos,
-                cfg.argumentos_fixos,
+                argumentos,
             )
             linhas[primeira]["celulas"][tag.indice] = _celula_formula(
                 referencia,
@@ -325,13 +331,14 @@ def reescrever_aba(pacote: PacoteXlsx, aba: AbaInfo, carimbos: list, cfg,
             linha = linhas[numero]
             for tag in comuns:
                 referencia = "%s%d" % (tag.coluna, numero)
+                funcao_linha, _, argumentos = cfg.receita_da_coluna(tag.filtro)
                 formula_xml = montar_formula_xml(
                     tag.coluna,
                     cfg.linha_tags,
                     numero,
                     cfg.coluna_data,
-                    cfg.funcao_pi,
-                    cfg.argumentos_fixos,
+                    funcao_linha,
+                    argumentos,
                 )
                 cache = _cache_preservado(
                     linha["celulas"].get(tag.indice), formula_xml, cfg

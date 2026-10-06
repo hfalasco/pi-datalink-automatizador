@@ -16,7 +16,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from config import EXTENSOES_SUPORTADAS
+from config import EXTENSOES_SUPORTADAS, MODO_BLOCO
 from . import inspector, writer
 from .timeline import gerar_carimbos
 from .xml_utils import PacoteXlsx
@@ -187,6 +187,21 @@ def avisos_de_colunas_proprias(abas: list, cfg) -> list:
             avisos.append(
                 "%s: colunas de apoio mantidas intactas (so guardam TAG): %s"
                 % (aba.nome, ", ".join(tag.coluna for tag in aba.auxiliares))
+            )
+
+        # Colunas marcadas com uma expressao de filtro na linha de TAGs: saem
+        # com PITimeFilter, contando o tempo em que a condicao foi verdadeira.
+        if aba.filtradas:
+            por_linha, em_bloco, _ = cfg.receita_da_coluna(True)
+            avisos.append(
+                "%s: tempo por filtro (%s, em %s) na(s) coluna(s) %s - a "
+                "expressao continua na celula da linha %d e pode ser trocada "
+                "direto no Excel"
+                % (aba.nome,
+                   em_bloco if cfg.modo_formula == MODO_BLOCO else por_linha,
+                   cfg.unidade_tempo_filtrado,
+                   ", ".join(tag.coluna for tag in aba.filtradas),
+                   cfg.linha_tags)
             )
 
         # Colunas com formula que o programa nao reescreve. Quando nao tem TAG

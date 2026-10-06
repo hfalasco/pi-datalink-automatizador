@@ -99,7 +99,9 @@ with st.sidebar:
         st.markdown(
             tema.texto_fraco(
                 "Preencha <b>%s</b> com o nome do indicador e <b>%s</b> com a "
-                "TAG do PI. Para mais indicadores, repita nas colunas C, D..."
+                "TAG do PI. Para mais indicadores, repita nas colunas C, D... "
+                "Para contar o tempo em que uma condicao foi verdadeira, ponha "
+                "a expressao de filtro no lugar da TAG."
                 % (celulas["nome"], celulas["tag"])),
             unsafe_allow_html=True,
         )
