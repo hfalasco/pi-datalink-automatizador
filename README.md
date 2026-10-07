@@ -191,7 +191,8 @@ Na barra lateral:
 - **Período** — data inicial, data final e intervalo.
 - **Opções** — *Buscar tudo de uma vez* (modo rápido), *Abrir sem calcular*,
   *Matriz dinâmica* e *Manter contas da planilha*. Todas já vêm marcadas nos
-  valores recomendados.
+  valores recomendados. Mais uma, que **já vem desmarcada**: *Tempo por filtro
+  (PITimeFilter)* — ver a seção 5-F.
 
 No miolo:
 
@@ -635,6 +636,49 @@ O limite de envio desta página é 500 MB por arquivo (`LIMITE_ENVIO_MB` em
 que pesa agora é o próprio Streamlit, que guarda na memória o arquivo enquanto
 ele está na caixa de envio: num servidor pequeno, como a nuvem gratuita, poucos
 envios desse tamanho ao mesmo tempo já apertam.
+
+---
+
+## 5-F. Tempo por filtro (PITimeFilter)
+
+A fórmula padrão do programa, `PIAdvCalcDat`, responde *"qual foi a média da TAG
+no intervalo"*. A `PITimeFilter` responde outra pergunta: *"quanto tempo, dentro
+do intervalo, a condição foi verdadeira"* — quantas horas a válvula ficou
+aberta, quantas horas a moenda ficou moendo.
+
+### Na página
+
+Na barra lateral, em **Opções**, marque **Tempo por filtro (PITimeFilter)**. É
+uma chave só, para a planilha toda: **todas** as colunas que o programa grava
+saem com `PITimeFilter` no lugar de `PIAdvCalcDat` (ou `PITimeFilterVal` no
+lugar de `PIAdvCalcVal`, se *Buscar tudo de uma vez* estiver desmarcado). O
+programa não analisa coluna por coluna para decidir qual vai ser qual.
+
+Ao marcar, aparece a **Unidade do tempo** (`seconds`, `minutes`, `hours` ou
+`days`). Com `hours` e intervalo de 1 hora, o resultado vai de 0 a 1; com
+`minutes`, de 0 a 60.
+
+### Como a planilha precisa estar
+
+Como a `PITimeFilter` não recebe uma TAG, e sim uma condição, a **linha 2 de
+cada coluna** passa a guardar a condição no lugar da TAG:
+
+```
+'USM-XV_411010'="Aberta" AND 'USM-XV_411012'="Aberta"
+```
+
+A fórmula continua apontando para a célula (`PITimeFilter(B$2,$A$3,$A$291,"1h","hours",0,"")`),
+então dá para trocar a condição direto no Excel, sem processar de novo. Se uma
+coluna tiver uma TAG na linha 2, o programa avisa no teste e no log que o
+`PITimeFilter` vai dar erro nela.
+
+### O que não muda
+
+- Com a chave desmarcada (o padrão), a saída é exatamente a de sempre.
+- Colunas com **conta própria** (*Manter contas da planilha*), como as que já
+  usam `PIAdvCalcFilDat`, continuam como estão — só as colunas que o programa
+  grava sozinho trocam de fórmula.
+- Voltar atrás é desmarcar e processar de novo: as colunas voltam a `PIAdvCalcDat`.
 
 ---
 

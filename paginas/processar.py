@@ -35,6 +35,7 @@ import comum
 import tema
 from comum import numero
 from config import (MODO_BLOCO, MODO_LINHA, PRIMEIRA_LINHA_DADOS_PADRAO,
+                    UNIDADE_TEMPO_FILTRADO_PADRAO, UNIDADES_TEMPO_FILTRADO,
                     Config, ConfigAba, normalizar_nome)
 from core import composta, inspector, processor, writer
 from core.formula import (intervalo_pi, montar_formula, montar_formula_bloco,
@@ -80,7 +81,9 @@ def ler_data(texto: str, rotulo: str):
 
 def montar_config(entrada, saida, inicio, fim, intervalo, abas, por_aba,
                   rapido=True, calculo_manual=True, matriz_dinamica=True,
-                  manter_contas=True, com_log=True) -> Config:
+                  manter_contas=True, tempo_filtrado=False,
+                  unidade_tempo=UNIDADE_TEMPO_FILTRADO_PADRAO,
+                  com_log=True) -> Config:
     """Monta o Config da execucao - mesmo conjunto de opcoes da janela antiga."""
     saida = Path(saida)
     return Config(
@@ -96,6 +99,8 @@ def montar_config(entrada, saida, inicio, fim, intervalo, abas, por_aba,
         matriz_dinamica=matriz_dinamica,
         preservar_formulas_personalizadas=manter_contas,
         ignorar_colunas_auxiliares=manter_contas,
+        tempo_filtrado=tempo_filtrado,
+        unidade_tempo_filtrado=unidade_tempo,
         pasta_log=saida / "logs" if com_log else None,
     )
 
@@ -244,6 +249,10 @@ def relatorio_de_teste(caminho: Path, cfg: Config) -> list:
                 registrar("      coluna %s - conta propria da planilha, %d TAG(s): %s"
                           % (tag.coluna, tag.personalizada.total_chamadas,
                              " + ".join(tag.fontes)))
+            elif cfg.tempo_filtrado and not processor.parece_condicao(tag.texto):
+                registrar("      %s%d = %s   (AVISO: nao parece uma condicao de "
+                          "filtro - o PITimeFilter vai dar erro)"
+                          % (tag.coluna, cfg.linha_tags, tag.texto))
             else:
                 registrar("      %s%d = %s" % (tag.coluna, cfg.linha_tags, tag.texto))
         if aba.auxiliares:
@@ -260,20 +269,21 @@ def relatorio_de_teste(caminho: Path, cfg: Config) -> list:
         comuns = [tag for tag in aba.tags if not tag.personalizada]
         if comuns:
             primeira = comuns[0]
+            funcao_linha, funcao_bloco, argumentos = cfg.receita_da_formula
             registrar("    Formulas que serao inseridas:")
             if em_bloco:
                 texto = montar_formula_bloco(
                     primeira.coluna, cfg.linha_tags, primeira_linha,
-                    ultima_data, cfg.coluna_data, cfg.funcao_pi_bloco,
-                    intervalo, cfg.argumentos_fixos)
+                    ultima_data, cfg.coluna_data, funcao_bloco,
+                    intervalo, argumentos)
                 registrar("      %s%d %s  (uma so, em matriz)"
                           % (primeira.coluna, primeira_linha, para_exibicao(texto)))
             else:
                 for deslocamento in range(min(3, formulas_aba)):
                     linha = primeira_linha + deslocamento
                     texto = montar_formula(primeira.coluna, cfg.linha_tags, linha,
-                                           cfg.coluna_data, cfg.funcao_pi,
-                                           cfg.argumentos_fixos)
+                                           cfg.coluna_data, funcao_linha,
+                                           argumentos)
                     registrar("      %s%d %s"
                               % (primeira.coluna, linha, para_exibicao(texto)))
                 if formulas_aba > 3:
@@ -333,7 +343,8 @@ def processar(cfg: Config, barra, status, registro: comum.Registro):
 for chave, padrao in (("data_inicial", DATA_PADRAO), ("data_final", DATA_PADRAO),
                       ("intervalo", INTERVALO_PADRAO), ("rapido", True),
                       ("calculo_manual", True), ("matriz_dinamica", True),
-                      ("manter_contas", True)):
+                      ("manter_contas", True), ("tempo_filtrado", False),
+                      ("unidade_tempo", UNIDADE_TEMPO_FILTRADO_PADRAO)):
     comum.lembrar(chave, padrao)
 
 with st.sidebar:
@@ -364,6 +375,22 @@ with st.sidebar:
         help="Colunas que somam duas ou mais TAGs: reaproveita a formula que ja "
              "esta la e troca so as datas.",
     )
+    tempo_filtrado = st.checkbox(
+        "Tempo por filtro (PITimeFilter)", key="tempo_filtrado",
+        help="Troca a formula da planilha toda: no lugar de PIAdvCalcDat, TODAS "
+             "as colunas saem com PITimeFilter - quanto tempo a condicao foi "
+             "verdadeira em cada intervalo. A linha 2 de cada coluna precisa "
+             "trazer a condicao no lugar da TAG, por exemplo "
+             "'USM-XV_411010'=\"Aberta\".",
+    )
+    unidade_tempo = UNIDADE_TEMPO_FILTRADO_PADRAO
+    if tempo_filtrado:
+        unidade_tempo = st.selectbox(
+            "Unidade do tempo", options=UNIDADES_TEMPO_FILTRADO,
+            key="unidade_tempo",
+            help="Em que unidade a conta volta: hours num intervalo de 1h "
+                 "devolve de 0 a 1; minutes, de 0 a 60.",
+        )
 
     st.markdown("---")
     st.markdown(
@@ -596,6 +623,7 @@ if pedido_teste or pedido_processar:
             None if todas_as_abas else abas_escolhidas, por_aba,
             rapido=rapido, calculo_manual=calculo_manual,
             matriz_dinamica=matriz_dinamica, manter_contas=manter_contas,
+            tempo_filtrado=tempo_filtrado, unidade_tempo=unidade_tempo,
         )
         problemas = cfg.validar()
 
