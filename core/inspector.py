@@ -274,7 +274,9 @@ def _analisar_formulas_existentes(nome_da_aba: str, celulas_dados: dict,
     nao_tratadas : [(coluna, motivo)] - colunas com formula que o programa nao
         sabe reescrever. So viram aviso.
     """
-    if not cfg.preservar_formulas_personalizadas:
+    # Chave "tempo por filtro" ligada: a planilha inteira muda para PITimeFilter,
+    # entao nenhuma conta propria e preservada e nenhuma coluna fica de fora.
+    if cfg.tempo_filtrado or not cfg.preservar_formulas_personalizadas:
         return {}, set(), []
 
     analises = {}

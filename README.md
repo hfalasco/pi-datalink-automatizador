@@ -191,7 +191,8 @@ Na barra lateral:
 - **Período** — data inicial, data final e intervalo.
 - **Opções** — *Buscar tudo de uma vez* (modo rápido), *Abrir sem calcular*,
   *Matriz dinâmica* e *Manter contas da planilha*. Todas já vêm marcadas nos
-  valores recomendados.
+  valores recomendados. Mais uma, que **já vem desmarcada**: *Tempo por filtro
+  (PITimeFilter)* — ver a seção 5-F.
 
 No miolo:
 
@@ -635,6 +636,42 @@ O limite de envio desta página é 500 MB por arquivo (`LIMITE_ENVIO_MB` em
 que pesa agora é o próprio Streamlit, que guarda na memória o arquivo enquanto
 ele está na caixa de envio: num servidor pequeno, como a nuvem gratuita, poucos
 envios desse tamanho ao mesmo tempo já apertam.
+
+---
+
+## 5-F. Tempo por filtro (PITimeFilter)
+
+A fórmula padrão do programa, `PIAdvCalcDat`, responde *"qual foi a média da TAG
+no intervalo"*. A `PITimeFilter` responde outra pergunta: *"quanto tempo, dentro
+do intervalo, a condição foi verdadeira"* — quantas horas a válvula ficou
+aberta, quantas horas a moenda ficou moendo.
+
+### Na página
+
+Na barra lateral, em **Opções**, marque **Tempo por filtro (PITimeFilter)**. É
+uma chave só, para a planilha toda: **todas** as colunas com algo na linha 2
+saem com `PITimeFilter` no lugar de `PIAdvCalcDat` (ou `PITimeFilterVal` no
+lugar de `PIAdvCalcVal`, se *Buscar tudo de uma vez* estiver desmarcado), por
+exemplo `PITimeFilter(B$2,$A$3,$A$291,"1h","hours",0,"")`. O programa não
+analisa coluna por coluna e não confere o que está na linha 2: a fórmula lê a
+célula, seja ela qual for.
+
+Ao marcar, aparece a **Unidade do tempo** (`seconds`, `minutes`, `hours` ou
+`days`). Com `hours` e intervalo de 1 hora, o resultado vai de 0 a 1; com
+`minutes`, de 0 a 60.
+
+### O que acontece com as contas da planilha
+
+Com a chave ligada, **nada é preservado**: *Manter contas da planilha* fica
+desabilitada e vale como desmarcada. Colunas que já tinham outra fórmula
+(`PIAdvCalcFilDat`, soma de TAGs, `PITimeFilter` escrita à mão) e colunas de
+apoio também viram `PITimeFilter`, desde que tenham algo na linha 2.
+
+### Voltar atrás
+
+- Com a chave desmarcada (o padrão), a saída é exatamente a de sempre.
+- Para desfazer, desmarque e processe de novo: as colunas voltam a
+  `PIAdvCalcDat`.
 
 ---
 

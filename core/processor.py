@@ -16,7 +16,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from config import EXTENSOES_SUPORTADAS
+from config import EXTENSOES_SUPORTADAS, MODO_BLOCO
 from . import inspector, writer
 from .timeline import gerar_carimbos
 from .xml_utils import PacoteXlsx
@@ -152,6 +152,16 @@ def avisos_de_colunas_proprias(abas: list, cfg) -> list:
     avisos = []
     for aba in abas:
         proprias = aba.personalizadas
+
+        # Chave "tempo por filtro" ligada: todas as colunas saem com PITimeFilter.
+        if cfg.tempo_filtrado and aba.tags:
+            por_linha, em_bloco, _ = cfg.receita_da_formula
+            avisos.append(
+                "%s: tempo por filtro (%s, em %s) em todas as colunas"
+                % (aba.nome,
+                   em_bloco if cfg.modo_formula == MODO_BLOCO else por_linha,
+                   cfg.unidade_tempo_filtrado)
+            )
 
         # Colunas que nao cabem em matriz: a conta usa uma funcao que resume a
         # coluna inteira em um numero so (AVERAGE, SUM, MAX...). Elas continuam

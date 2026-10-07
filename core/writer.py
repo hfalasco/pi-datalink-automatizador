@@ -275,6 +275,7 @@ def reescrever_aba(pacote: PacoteXlsx, aba: AbaInfo, carimbos: list, cfg,
         #   qualquer versao do Excel, mas trava o bloco inteiro para edicao.
         dinamica = bool(cm_matriz) and cfg.matriz_dinamica
         resultado.matriz = "dinamica" if dinamica else "cse"
+        _, funcao_bloco, argumentos = cfg.receita_da_formula
 
         for tag in comuns:
             referencia = "%s%d" % (tag.coluna, primeira)
@@ -291,9 +292,9 @@ def reescrever_aba(pacote: PacoteXlsx, aba: AbaInfo, carimbos: list, cfg,
                 primeira,
                 primeira + total_carimbos - 1,
                 cfg.coluna_data,
-                cfg.funcao_pi_bloco,
+                funcao_bloco,
                 intervalo_minutos,
-                cfg.argumentos_fixos,
+                argumentos,
             )
             linhas[primeira]["celulas"][tag.indice] = _celula_formula(
                 referencia,
@@ -320,6 +321,7 @@ def reescrever_aba(pacote: PacoteXlsx, aba: AbaInfo, carimbos: list, cfg,
         # cm= so serve para o Excel trata-la como matriz dinamica de 1 celula.
         dinamica = bool(cm_matriz) and cfg.matriz_dinamica
         resultado.matriz = "dinamica" if cm_matriz else "cse"
+        funcao_linha, _, argumentos = cfg.receita_da_formula
         for deslocamento in range(total_formulas):
             numero = primeira + deslocamento
             linha = linhas[numero]
@@ -330,8 +332,8 @@ def reescrever_aba(pacote: PacoteXlsx, aba: AbaInfo, carimbos: list, cfg,
                     cfg.linha_tags,
                     numero,
                     cfg.coluna_data,
-                    cfg.funcao_pi,
-                    cfg.argumentos_fixos,
+                    funcao_linha,
+                    argumentos,
                 )
                 cache = _cache_preservado(
                     linha["celulas"].get(tag.indice), formula_xml, cfg

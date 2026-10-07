@@ -81,6 +81,33 @@ ARGUMENTOS_FIXOS_PADRAO = (
     '""',
 )
 
+# ---------------------------------------------------------------------------
+# Tempo por filtro (PITimeFilter)
+# ---------------------------------------------------------------------------
+# A familia PIAdvCalc responde "qual foi a media da TAG no intervalo". A familia
+# PITimeFilter responde outra pergunta: "quanto TEMPO, dentro do intervalo, a
+# condicao foi verdadeira" - quantas horas a valvula ficou aberta. Por isso o
+# 1o argumento nao e uma TAG, e sim a expressao de filtro, que a planilha guarda
+# na celula da linha de TAGs:
+#
+#   'USM-XV_411010'="Aberta" AND 'USM-XV_411012'="Aberta"
+#
+# Assinaturas (a PITimeFilter confere com a formula que o proprio Excel grava;
+# a PITimeFilterVal segue o mesmo padrao, sem o "interval" na 4a posicao):
+#
+#   PITimeFilterVal   exp, stime, etime,           timeunites, outcode, root path
+#   PITimeFilter      exp, stime, etime, interval, timeunites, outcode, root path
+#
+# O nome e invertido em relacao ao resto: quem devolve UM valor leva o sufixo
+# "Val"; PITimeFilter (sem sufixo) e a que devolve todos os intervalos.
+FUNCAO_TEMPO_FILTRADO_PADRAO = "PITimeFilterVal"
+FUNCAO_TEMPO_FILTRADO_BLOCO_PADRAO = "PITimeFilter"
+
+# Em que unidade o tempo volta. "hours" num intervalo de 1h devolve algo entre
+# 0 e 1; "minutes" no mesmo intervalo, algo entre 0 e 60.
+UNIDADES_TEMPO_FILTRADO = ("seconds", "minutes", "hours", "days")
+UNIDADE_TEMPO_FILTRADO_PADRAO = "hours"
+
 # Formato de data/hora aplicado quando a coluna de data ainda nao possui estilo.
 FORMATO_DATA_PADRAO = "dd/mm/yyyy hh:mm"
 
@@ -188,6 +215,16 @@ class Config:
     argumentos_fixos: tuple[str, ...] = ARGUMENTOS_FIXOS_PADRAO
     formula_matriz: bool = True   # grava como formula de matriz (igual ao DataLink)
 
+    # True = chave unica: TODAS as colunas com algo na linha de TAGs saem com
+    # PITimeFilter no lugar de PIAdvCalcVal/Dat. Nada e analisado para decidir -
+    # a planilha inteira muda junto, e o que estiver na celula da linha de TAGs
+    # e o que a formula le. Ligada, ignora preservar_formulas_personalizadas e
+    # ignorar_colunas_auxiliares: nenhuma conta propria fica para tras.
+    tempo_filtrado: bool = False
+    funcao_tempo_filtrado: str = FUNCAO_TEMPO_FILTRADO_PADRAO
+    funcao_tempo_filtrado_bloco: str = FUNCAO_TEMPO_FILTRADO_BLOCO_PADRAO
+    unidade_tempo_filtrado: str = UNIDADE_TEMPO_FILTRADO_PADRAO
+
     # MODO_BLOCO = uma formula PIAdvCalcDat por coluna (muito menos consultas);
     # MODO_LINHA = uma formula PIAdvCalcVal por linha (comportamento original).
     modo_formula: str = MODO_BLOCO
@@ -233,6 +270,23 @@ class Config:
 
     # --- log --------------------------------------------------------------
     pasta_log: Path | None = None
+
+    # ------------------------------------------------------------------
+    @property
+    def receita_da_formula(self) -> tuple:
+        """(funcao por linha, funcao em matriz, argumentos fixos) das colunas.
+
+        E o unico ponto em que o programa escolhe a familia da formula. Com a
+        chave "tempo por filtro" desligada sai PIAdvCalcVal/Dat; ligada, sai
+        PITimeFilterVal/PITimeFilter - para todas as colunas, sem excecao.
+        """
+        if self.tempo_filtrado:
+            return (
+                self.funcao_tempo_filtrado,
+                self.funcao_tempo_filtrado_bloco,
+                ('"%s"' % self.unidade_tempo_filtrado, "0", '""'),
+            )
+        return (self.funcao_pi, self.funcao_pi_bloco, self.argumentos_fixos)
 
     # ------------------------------------------------------------------
     def config_da_aba(self, nome_aba: str) -> ConfigAba:
@@ -289,6 +343,12 @@ class Config:
             erros.append(
                 "Modo das colunas compostas invalido: %r (use %s)."
                 % (self.modo_composta, " ou ".join(MODOS_COMPOSTA))
+            )
+
+        if self.unidade_tempo_filtrado not in UNIDADES_TEMPO_FILTRADO:
+            erros.append(
+                "Unidade de tempo invalida: %r (use %s)."
+                % (self.unidade_tempo_filtrado, ", ".join(UNIDADES_TEMPO_FILTRADO))
             )
 
         if self.linha_tags < 1:
