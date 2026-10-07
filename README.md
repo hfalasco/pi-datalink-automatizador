@@ -649,36 +649,29 @@ aberta, quantas horas a moenda ficou moendo.
 ### Na página
 
 Na barra lateral, em **Opções**, marque **Tempo por filtro (PITimeFilter)**. É
-uma chave só, para a planilha toda: **todas** as colunas que o programa grava
+uma chave só, para a planilha toda: **todas** as colunas com algo na linha 2
 saem com `PITimeFilter` no lugar de `PIAdvCalcDat` (ou `PITimeFilterVal` no
-lugar de `PIAdvCalcVal`, se *Buscar tudo de uma vez* estiver desmarcado). O
-programa não analisa coluna por coluna para decidir qual vai ser qual.
+lugar de `PIAdvCalcVal`, se *Buscar tudo de uma vez* estiver desmarcado), por
+exemplo `PITimeFilter(B$2,$A$3,$A$291,"1h","hours",0,"")`. O programa não
+analisa coluna por coluna e não confere o que está na linha 2: a fórmula lê a
+célula, seja ela qual for.
 
 Ao marcar, aparece a **Unidade do tempo** (`seconds`, `minutes`, `hours` ou
 `days`). Com `hours` e intervalo de 1 hora, o resultado vai de 0 a 1; com
 `minutes`, de 0 a 60.
 
-### Como a planilha precisa estar
+### O que acontece com as contas da planilha
 
-Como a `PITimeFilter` não recebe uma TAG, e sim uma condição, a **linha 2 de
-cada coluna** passa a guardar a condição no lugar da TAG:
+Com a chave ligada, **nada é preservado**: *Manter contas da planilha* fica
+desabilitada e vale como desmarcada. Colunas que já tinham outra fórmula
+(`PIAdvCalcFilDat`, soma de TAGs, `PITimeFilter` escrita à mão) e colunas de
+apoio também viram `PITimeFilter`, desde que tenham algo na linha 2.
 
-```
-'USM-XV_411010'="Aberta" AND 'USM-XV_411012'="Aberta"
-```
-
-A fórmula continua apontando para a célula (`PITimeFilter(B$2,$A$3,$A$291,"1h","hours",0,"")`),
-então dá para trocar a condição direto no Excel, sem processar de novo. Se uma
-coluna tiver uma TAG na linha 2, o programa avisa no teste e no log que o
-`PITimeFilter` vai dar erro nela.
-
-### O que não muda
+### Voltar atrás
 
 - Com a chave desmarcada (o padrão), a saída é exatamente a de sempre.
-- Colunas com **conta própria** (*Manter contas da planilha*), como as que já
-  usam `PIAdvCalcFilDat`, continuam como estão — só as colunas que o programa
-  grava sozinho trocam de fórmula.
-- Voltar atrás é desmarcar e processar de novo: as colunas voltam a `PIAdvCalcDat`.
+- Para desfazer, desmarque e processe de novo: as colunas voltam a
+  `PIAdvCalcDat`.
 
 ---
 

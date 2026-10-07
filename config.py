@@ -215,11 +215,11 @@ class Config:
     argumentos_fixos: tuple[str, ...] = ARGUMENTOS_FIXOS_PADRAO
     formula_matriz: bool = True   # grava como formula de matriz (igual ao DataLink)
 
-    # True = chave unica: TODAS as colunas que o programa grava saem com
-    # PITimeFilter no lugar de PIAdvCalcVal/Dat. Nenhuma coluna e analisada para
-    # decidir - a planilha inteira muda junto, e a linha das TAGs precisa trazer
-    # a expressao de filtro no lugar da TAG. Contas proprias preservadas
-    # (preservar_formulas_personalizadas) continuam como estao.
+    # True = chave unica: TODAS as colunas com algo na linha de TAGs saem com
+    # PITimeFilter no lugar de PIAdvCalcVal/Dat. Nada e analisado para decidir -
+    # a planilha inteira muda junto, e o que estiver na celula da linha de TAGs
+    # e o que a formula le. Ligada, ignora preservar_formulas_personalizadas e
+    # ignorar_colunas_auxiliares: nenhuma conta propria fica para tras.
     tempo_filtrado: bool = False
     funcao_tempo_filtrado: str = FUNCAO_TEMPO_FILTRADO_PADRAO
     funcao_tempo_filtrado_bloco: str = FUNCAO_TEMPO_FILTRADO_BLOCO_PADRAO

@@ -13,7 +13,6 @@ Regras de seguranca implementadas aqui:
 from __future__ import annotations
 
 import os
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -143,16 +142,6 @@ def _verificar_bloqueio(caminho: Path) -> None:
         raise PermissionError("arquivo bloqueado ou sem permissao de leitura")
 
 
-# Condicao de filtro do PI: pelo menos uma comparacao (=, <>, >=, <, ...) e uma
-# aspa - 'USM-XV_411010'="Aberta". Um caminho de TAG nao tem nenhuma das duas.
-_RE_COMPARACAO = re.compile(r"<>|>=|<=|[=<>]")
-
-
-def parece_condicao(texto: str) -> bool:
-    texto = texto or ""
-    return ("'" in texto or '"' in texto) and bool(_RE_COMPARACAO.search(texto))
-
-
 def avisos_de_colunas_proprias(abas: list, cfg) -> list:
     """Resume, por aba, as colunas com conta propria e as colunas de apoio.
 
@@ -164,30 +153,15 @@ def avisos_de_colunas_proprias(abas: list, cfg) -> list:
     for aba in abas:
         proprias = aba.personalizadas
 
-        # Chave "tempo por filtro" ligada: todas as colunas saem com
-        # PITimeFilter. Nada e decidido por coluna - so avisamos quando a linha
-        # das TAGs de alguma delas nao parece uma condicao (e sim uma TAG).
-        if cfg.tempo_filtrado:
-            comuns = [tag for tag in aba.tags if not tag.personalizada]
-            if comuns:
-                por_linha, em_bloco, _ = cfg.receita_da_formula
-                avisos.append(
-                    "%s: tempo por filtro (%s, em %s) em todas as colunas - a "
-                    "linha %d de cada uma precisa trazer a condicao no lugar "
-                    "da TAG"
-                    % (aba.nome,
-                       em_bloco if cfg.modo_formula == MODO_BLOCO else por_linha,
-                       cfg.unidade_tempo_filtrado, cfg.linha_tags)
-                )
-            sem_condicao = [tag.coluna for tag in comuns
-                            if not parece_condicao(tag.texto)]
-            if sem_condicao:
-                avisos.append(
-                    "%s: a linha %d de %s nao parece uma condicao de filtro "
-                    "(parece uma TAG) - o PITimeFilter vai dar erro nessas "
-                    "colunas"
-                    % (aba.nome, cfg.linha_tags, ", ".join(sem_condicao))
-                )
+        # Chave "tempo por filtro" ligada: todas as colunas saem com PITimeFilter.
+        if cfg.tempo_filtrado and aba.tags:
+            por_linha, em_bloco, _ = cfg.receita_da_formula
+            avisos.append(
+                "%s: tempo por filtro (%s, em %s) em todas as colunas"
+                % (aba.nome,
+                   em_bloco if cfg.modo_formula == MODO_BLOCO else por_linha,
+                   cfg.unidade_tempo_filtrado)
+            )
 
         # Colunas que nao cabem em matriz: a conta usa uma funcao que resume a
         # coluna inteira em um numero so (AVERAGE, SUM, MAX...). Elas continuam

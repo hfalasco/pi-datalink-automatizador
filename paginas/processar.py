@@ -249,10 +249,6 @@ def relatorio_de_teste(caminho: Path, cfg: Config) -> list:
                 registrar("      coluna %s - conta propria da planilha, %d TAG(s): %s"
                           % (tag.coluna, tag.personalizada.total_chamadas,
                              " + ".join(tag.fontes)))
-            elif cfg.tempo_filtrado and not processor.parece_condicao(tag.texto):
-                registrar("      %s%d = %s   (AVISO: nao parece uma condicao de "
-                          "filtro - o PITimeFilter vai dar erro)"
-                          % (tag.coluna, cfg.linha_tags, tag.texto))
             else:
                 registrar("      %s%d = %s" % (tag.coluna, cfg.linha_tags, tag.texto))
         if aba.auxiliares:
@@ -373,15 +369,16 @@ with st.sidebar:
     manter_contas = st.checkbox(
         "Manter contas da planilha", key="manter_contas",
         help="Colunas que somam duas ou mais TAGs: reaproveita a formula que ja "
-             "esta la e troca so as datas.",
+             "esta la e troca so as datas. Nao vale com 'Tempo por filtro' "
+             "ligado - ai todas as colunas mudam.",
+        disabled=st.session_state.get("tempo_filtrado", False),
     )
     tempo_filtrado = st.checkbox(
         "Tempo por filtro (PITimeFilter)", key="tempo_filtrado",
         help="Troca a formula da planilha toda: no lugar de PIAdvCalcDat, TODAS "
              "as colunas saem com PITimeFilter - quanto tempo a condicao foi "
-             "verdadeira em cada intervalo. A linha 2 de cada coluna precisa "
-             "trazer a condicao no lugar da TAG, por exemplo "
-             "'USM-XV_411010'=\"Aberta\".",
+             "verdadeira em cada intervalo. A formula le a celula da linha 2 "
+             "de cada coluna, seja ela qual for.",
     )
     unidade_tempo = UNIDADE_TEMPO_FILTRADO_PADRAO
     if tempo_filtrado:
