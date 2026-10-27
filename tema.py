@@ -1,43 +1,53 @@
 # -*- coding: utf-8 -*-
-"""Identidade visual da pagina.
+"""Identidade visual da pagina - a mesma do AutoFill (template Sao Martinho).
 
-A paleta continua sendo a da marca - verde de destaque, azul no cabecalho,
-cinza no texto de apoio - com os mesmos nomes de antes. O que mudou foi o
-arranjo: a pagina agora tem barra lateral com a marca e os ajustes, e o miolo
-virou uma sequencia de cartoes brancos sobre fundo claro.
+O arranjo segue o do AutoFill: barra lateral em degrade verde -> azul-marinho
+com o logotipo no topo e o texto em branco; no miolo, o cabecalho com as
+faixas inclinadas e o filete amarelo, titulos de passo em verde e cartoes
+brancos com a borda esquerda grossa na cor da marca.
 
 Parte das cores tambem esta em .streamlit/config.toml - o Streamlit precisa
 delas antes de o script rodar, para pintar a pagina inteira. O que o config.toml
-nao alcanca (barra lateral, cartoes, cartelas de numeros, caixa do registro)
-esta no CSS aqui embaixo.
+nao alcanca (barra lateral, cabecalho, cartoes, cartelas de numeros, caixa do
+registro) esta no CSS aqui embaixo.
 
-Nada aqui baixa fonte ou icone da internet: tudo usa fonte do proprio sistema.
-Numa rede de fabrica, sem saida para a internet, a pagina abre igual.
+Nada aqui baixa fonte ou icone da internet: a fonte e a que vem dentro do
+proprio Streamlit e o logotipo esta em assets/. Numa rede de fabrica, sem
+saida para a internet, a pagina abre igual.
 """
 
 from __future__ import annotations
 
-# Paleta - tons sobrios, bom contraste, sem depender de tema do sistema.
-COR_FUNDO = "#F2F5F7"          # fundo da pagina
-COR_PAINEL = "#FFFFFF"         # cartoes e barra lateral
-COR_BORDA = "#E3E9EE"          # bordas discretas
-COR_TEXTO = "#1B2733"
-COR_TEXTO_FRACO = "#64748B"    # sm-gray
-COR_DESTAQUE = "#1E7E4A"       # sm-green
-COR_DESTAQUE_ATIVO = "#166139"  # sm-green-dk
-COR_DESTAQUE_CLARO = "#E8F3EC"  # fundo de apoio no verde da marca
-COR_CABECALHO = "#1F4E79"      # sm-blue
-COR_CABECALHO_ESCURO = "#16324A"
-COR_SUBTITULO = "#B9C6D4"      # texto secundario sobre o azul da marca
-COR_LOG_FUNDO = "#0F2436"      # variacao escura de sm-blue
-COR_LOG_TEXTO = "#DCE7F1"
-COR_TEAL = "#1A7A7A"           # sm-teal - reservado para acentos pontuais
-COR_GOLD = "#C8A000"           # sm-gold - reservado para avisos/destaques raros
-COR_GOLD_CLARO = "#FBF1CC"     # fundo da celula de TAG na planilha base
-COR_GOLD_TEXTO = "#5C4A00"     # texto sobre o dourado claro
+from pathlib import Path
 
-FAMILIA_FONTE = '"Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif'
-FAMILIA_MONO = '"Cascadia Mono", Consolas, "Courier New", monospace'
+# Paleta - a do AutoFill (autofill/view/tema.py), com os nomes de sempre.
+COR_FUNDO = "#FFFFFF"          # fundo da pagina
+COR_PAINEL = "#FFFFFF"         # cartoes
+COR_BORDA = "#DCE7E0"          # bordas discretas, puxadas para o verde
+COR_TEXTO = "#13263A"
+COR_TEXTO_FRACO = "#4A5A6A"
+COR_DESTAQUE = "#1F7E4E"       # verde da marca
+COR_DESTAQUE_ATIVO = "#14603A"  # verde escuro
+COR_DESTAQUE_MEDIO = "#8CD3A9"  # verde claro das faixas e do tracejado
+COR_DESTAQUE_CLARO = "#EAF5EE"  # fundo de apoio no verde da marca
+COR_CABECALHO = "#0B3A5B"      # azul-marinho: fim do degrade e valores
+COR_AZUL = "#0B4F8A"           # azul das faixas e dos cartoes azuis
+COR_LOG_FUNDO = "#0A2A42"      # variacao escura do azul-marinho
+COR_LOG_TEXTO = "#DCE7F1"
+COR_GOLD = "#E8C21B"           # amarelo do filete e dos numeros de passo
+COR_GOLD_CLARO = "#FFF6DA"     # fundo dos avisos
+COR_GOLD_TEXTO = "#8A6D00"     # texto sobre o amarelo claro
+
+# A miniatura da planilha base imita o arquivo baixado, entao usa as cores de
+# core/modelo.py - e nao a paleta da pagina.
+COR_PLANILHA_DATA = "#1F4E79"
+COR_PLANILHA_NOME = "#E8F3EC"
+COR_PLANILHA_NOME_TEXTO = "#166139"
+COR_PLANILHA_TAG = "#FBF1CC"
+COR_PLANILHA_TAG_TEXTO = "#5C4A00"
+
+# Logotipo do topo da barra lateral e icone da aba do navegador (app.py).
+CAMINHO_LOGO = Path(__file__).resolve().parent / "assets" / "logo_sao_martinho.png"
 
 
 # As cores entram so aqui, por substituicao. O resto do CSS e texto literal e
@@ -52,38 +62,26 @@ _VARIAVEIS = """
     --pi-fraco: %(fraco)s;
     --pi-verde: %(destaque)s;
     --pi-verde-escuro: %(destaque_ativo)s;
+    --pi-verde-medio: %(destaque_medio)s;
     --pi-verde-claro: %(destaque_claro)s;
-    --pi-azul: %(cabecalho)s;
-    --pi-azul-escuro: %(cabecalho_escuro)s;
-    --pi-azul-claro: %(subtitulo)s;
+    --pi-marinho: %(cabecalho)s;
+    --pi-azul: %(azul)s;
     --pi-log-fundo: %(log_fundo)s;
     --pi-log-texto: %(log_texto)s;
-    --pi-dourado: %(gold)s;
-    --pi-dourado-claro: %(gold_claro)s;
-    --pi-dourado-texto: %(gold_texto)s;
-    --pi-fonte: %(fonte)s;
-    --pi-mono: %(mono)s;
+    --pi-amarelo: %(gold)s;
+    --pi-amarelo-claro: %(gold_claro)s;
+    --pi-amarelo-texto: %(gold_texto)s;
+    --pi-planilha-data: %(planilha_data)s;
+    --pi-planilha-nome: %(planilha_nome)s;
+    --pi-planilha-nome-texto: %(planilha_nome_texto)s;
+    --pi-planilha-tag: %(planilha_tag)s;
+    --pi-planilha-tag-texto: %(planilha_tag_texto)s;
     --pi-raio: 12px;
-    --pi-sombra: 0 1px 2px rgba(16, 40, 64, .06), 0 6px 16px rgba(16, 40, 64, .05);
+    --pi-sombra: 0 2px 6px rgba(11, 58, 91, .06);
   }
 """
 
 _REGRAS = """
-  html, body, [class*="st-"], button, input, textarea, select {
-    font-family: var(--pi-fonte);
-  }
-
-  /* Excecao obrigatoria: os icones do Streamlit sao LIGADURAS. O elemento
-     contem o texto "upload" e a fonte de icones o transforma no desenho.
-     A regra acima alcanca esses elementos (a classe deles comeca com "st-")
-     e, sem a fonte certa, o navegador escreve a palavra na tela - era o que
-     fazia aparecer "upload" escrito na caixa de envio de arquivos. */
-  [data-testid="stIconMaterial"],
-  [class*="material-symbols"],
-  .material-icons {
-    font-family: "Material Symbols Rounded", "Material Icons" !important;
-  }
-
   /* ----------------------------------------------------------------- */
   /* Estrutura                                                          */
   /* ----------------------------------------------------------------- */
@@ -94,94 +92,128 @@ _REGRAS = """
      O botao "Deploy" so aparece para quem roda localmente. */
   [data-testid="stAppDeployButton"], footer { display: none; }
 
-  /* A pagina usa layout largo por causa da barra lateral, mas o texto fica
-     mais facil de ler numa coluna estreita - dai o limite de largura. */
   .block-container {
-    padding-top: 2.6rem;
+    padding-top: 1.6rem;
     padding-bottom: 3rem;
-    max-width: 1060px;
+    max-width: 1250px;
   }
 
   /* ----------------------------------------------------------------- */
-  /* Barra lateral                                                      */
+  /* Barra lateral - degrade da marca, texto branco                     */
   /* ----------------------------------------------------------------- */
-  [data-testid="stSidebar"] {
-    background: var(--pi-painel);
-    border-right: 1px solid var(--pi-borda);
+  section[data-testid="stSidebar"] > div {
+    background: linear-gradient(180deg, var(--pi-verde) 0%, var(--pi-verde-escuro) 55%, var(--pi-marinho) 100%);
   }
-  [data-testid="stSidebar"] [data-testid="stSidebarUserContent"],
-  [data-testid="stSidebarContent"] { padding-top: .6rem; }
+  section[data-testid="stSidebar"] * { color: #FFFFFF; }
+  section[data-testid="stSidebar"] hr { border-color: rgba(255, 255, 255, .25); }
 
+  /* Campos da barra lateral: caixa branca com texto escuro, como no AutoFill. */
+  section[data-testid="stSidebar"] [data-baseweb="select"] > div,
+  section[data-testid="stSidebar"] [data-testid="stDateInputField"],
+  section[data-testid="stSidebar"] [data-testid="stTextInput"] [data-baseweb="input"],
+  section[data-testid="stSidebar"] [data-testid="stTextInput"] [data-baseweb="base-input"],
+  section[data-testid="stSidebar"] [data-testid="stNumberInput"] [data-baseweb="input"],
+  section[data-testid="stSidebar"] [data-testid="stNumberInputStepDown"],
+  section[data-testid="stSidebar"] [data-testid="stNumberInputStepUp"] { background: #FFFFFF; }
+  section[data-testid="stSidebar"] [data-baseweb="select"] *,
+  section[data-testid="stSidebar"] [data-testid="stDateInputField"] *,
+  section[data-testid="stSidebar"] [data-testid="stTextInput"] input,
+  section[data-testid="stSidebar"] [data-testid="stNumberInput"] input,
+  section[data-testid="stSidebar"] [data-testid="stNumberInputStepDown"] *,
+  section[data-testid="stSidebar"] [data-testid="stNumberInputStepUp"] * {
+    color: var(--pi-texto) !important;
+    -webkit-text-fill-color: var(--pi-texto);
+  }
+  div[data-baseweb="popover"] * { color: var(--pi-texto); }
+
+  /* Caixa de marcar: sobre o degrade, o quadrado marcado ganha borda branca. */
+  section[data-testid="stSidebar"] [data-testid="stCheckbox"] label > span:first-child {
+    border-color: #FFFFFF;
+  }
+
+  /* Botoes da barra lateral: brancos com texto verde. */
+  section[data-testid="stSidebar"] [data-testid="stDownloadButton"] button,
+  section[data-testid="stSidebar"] .stButton button {
+    background: #FFFFFF;
+    border: none;
+  }
+  section[data-testid="stSidebar"] [data-testid="stDownloadButton"] button *,
+  section[data-testid="stSidebar"] .stButton button * { color: var(--pi-verde) !important; }
+  section[data-testid="stSidebar"] [data-testid="stDownloadButton"] button:hover {
+    background: var(--pi-verde-claro);
+  }
+
+  /* Nome do programa, logo abaixo do logotipo. */
   .pi-marca {
-    background: linear-gradient(135deg, var(--pi-azul) 0%, var(--pi-azul-escuro) 100%);
+    background: rgba(255, 255, 255, .10);
+    border: 1px solid rgba(255, 255, 255, .22);
     border-radius: var(--pi-raio);
-    padding: 16px 18px;
-    margin-bottom: 18px;
+    padding: 12px 16px;
+    margin: 4px 0 18px;
   }
   .pi-marca .pi-marca-nome {
-    color: #FFFFFF;
-    font-size: 1.05rem;
-    font-weight: 700;
+    font-size: 1.1rem;
+    font-weight: 800;
     line-height: 1.25;
     letter-spacing: .2px;
   }
   .pi-marca .pi-marca-sub {
-    color: var(--pi-azul-claro);
-    font-size: .78rem;
-    margin-top: 6px;
+    font-size: .82rem;
+    opacity: .88;
+    margin-top: 4px;
   }
   .pi-versao {
     display: inline-block;
-    margin-top: 10px;
-    padding: 2px 9px;
+    margin-top: 8px;
+    padding: 1px 9px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, .14);
-    color: #FFFFFF;
+    background: var(--pi-amarelo);
+    color: var(--pi-marinho) !important;
     font-size: .7rem;
-    font-weight: 600;
+    font-weight: 800;
     letter-spacing: .4px;
   }
 
-  /* Titulo de cada grupo da barra lateral. */
+  /* Titulo de cada grupo da barra lateral - como os "### 1. ..." do AutoFill. */
   .pi-grupo {
-    color: var(--pi-fraco);
-    font-size: .72rem;
+    font-size: 1.12rem;
     font-weight: 700;
-    letter-spacing: .9px;
-    text-transform: uppercase;
-    margin: 4px 0 2px;
+    margin: 6px 0 4px;
   }
 
-  /* Links das paginas, no topo dos Modulos. O da pagina aberta fica verde
-     (app.py poe esse link num container com a chave "link_ativo"). */
-  [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] {
+  /* Links das paginas, no topo dos Modulos. O da pagina aberta fica branco
+     com o texto verde (app.py poe esse link num container com a chave
+     "link_ativo"). */
+  section[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] {
     border-radius: 9px;
     padding: 7px 10px;
   }
-  .st-key-paginas { gap: 2px; margin-bottom: 6px; }
-  [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"]:hover {
-    background: var(--pi-fundo);
+  .st-key-paginas { gap: 2px; margin-bottom: 8px; }
+  section[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"]:hover {
+    background: rgba(255, 255, 255, .12);
   }
   .st-key-link_ativo [data-testid="stPageLink-NavLink"],
   .st-key-link_ativo [data-testid="stPageLink-NavLink"]:hover {
-    background: var(--pi-verde-claro);
+    background: #FFFFFF;
   }
-  .st-key-link_ativo [data-testid="stPageLink-NavLink"] span,
-  .st-key-link_ativo [data-testid="stPageLink-NavLink"] p {
-    color: var(--pi-verde-escuro) !important;
-    font-weight: 700;
+  section[data-testid="stSidebar"] .st-key-link_ativo [data-testid="stPageLink-NavLink"] * {
+    color: var(--pi-verde) !important;
+    font-weight: 800;
+  }
+
+  /* O modulo da barra lateral (st.container(border=True) que comeca com
+     tema.modulo) fica translucido, sem o cartao branco do miolo. */
+  section[data-testid="stSidebar"] [data-testid="stVerticalBlock"]:has(> [data-testid="stElementContainer"] .pi-modulo-nome) {
+    background: rgba(255, 255, 255, .08);
+    border: 1px solid rgba(255, 255, 255, .30);
   }
 
   /* Modulos da barra lateral: titulo e linha de apoio de cada um. */
-  .pi-modulo-nome {
-    color: var(--pi-texto);
-    font-size: .92rem;
-    font-weight: 700;
-  }
+  .pi-modulo-nome { font-size: .95rem; font-weight: 700; }
   .pi-modulo-sub {
-    color: var(--pi-fraco);
-    font-size: .78rem;
+    font-size: .8rem;
     line-height: 1.45;
+    opacity: .88;
     margin: 2px 0 10px;
   }
 
@@ -194,15 +226,15 @@ _REGRAS = """
     display: grid;
     grid-template-columns: 22px 1fr 1.35fr;
     gap: 1px;
-    background: var(--pi-borda);
-    border: 1px solid var(--pi-borda);
+    background: #C9D6CF;
+    border: 1px solid #C9D6CF;
     border-radius: 8px;
     overflow: hidden;
     font-size: .76rem;
     margin-bottom: 8px;
   }
   .pi-modelo > div {
-    background: var(--pi-painel);
+    background: #FFFFFF;
     padding: 4px 7px;
     min-height: 24px;
     display: flex;
@@ -210,8 +242,9 @@ _REGRAS = """
     white-space: nowrap;
     overflow: hidden;
   }
-  .pi-modelo .pi-m-cab {
-    background: var(--pi-fundo);
+  section[data-testid="stSidebar"] .pi-modelo > div { color: var(--pi-texto); }
+  section[data-testid="stSidebar"] .pi-modelo .pi-m-cab {
+    background: #F2F5F7;
     color: var(--pi-fraco);
     font-size: .68rem;
     font-weight: 600;
@@ -219,111 +252,120 @@ _REGRAS = """
     padding: 2px 0;
     min-height: 0;
   }
-  .pi-modelo .pi-m-data {
-    background: var(--pi-azul);
+  section[data-testid="stSidebar"] .pi-modelo .pi-m-data {
+    background: var(--pi-planilha-data);
     color: #FFFFFF;
     font-weight: 700;
     justify-content: center;
   }
-  .pi-modelo .pi-m-nome {
-    background: var(--pi-verde-claro);
-    color: var(--pi-verde-escuro);
+  section[data-testid="stSidebar"] .pi-modelo .pi-m-nome {
+    background: var(--pi-planilha-nome);
+    color: var(--pi-planilha-nome-texto);
     font-weight: 700;
   }
-  .pi-modelo .pi-m-tag {
-    background: var(--pi-dourado-claro);
-    color: var(--pi-dourado-texto);
+  section[data-testid="stSidebar"] .pi-modelo .pi-m-tag {
+    background: var(--pi-planilha-tag);
+    color: var(--pi-planilha-tag-texto);
     font-weight: 700;
   }
-  .pi-modelo .pi-m-auto { color: var(--pi-fraco); font-style: italic; }
+  section[data-testid="stSidebar"] .pi-modelo .pi-m-auto {
+    color: var(--pi-fraco);
+    font-style: italic;
+  }
 
   /* Passo a passo numerado da barra lateral (pagina Tirar formulas). */
   .pi-passos > div {
     display: flex;
     gap: 9px;
-    color: var(--pi-fraco);
-    font-size: .82rem;
+    font-size: .85rem;
     line-height: 1.45;
     margin: 6px 0 8px;
   }
-  .pi-passos .pi-passo {
+
+  /* Numero de passo: a bolinha amarela do AutoFill. */
+  .pi-passo {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    flex: 0 0 20px;
-    height: 20px;
-    border-radius: 6px;
-    background: var(--pi-verde-claro);
-    color: var(--pi-verde);
-    font-size: .72rem;
-    font-weight: 700;
+    flex: 0 0 1.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background: var(--pi-amarelo);
+    color: var(--pi-marinho) !important;
+    font-size: .8rem;
+    font-weight: 900;
   }
 
   /* ----------------------------------------------------------------- */
-  /* Titulo da pagina                                                   */
+  /* Cabecalho da pagina - degrade com as faixas inclinadas             */
   /* ----------------------------------------------------------------- */
+  .pi-titulo {
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+    padding: 26px 32px 24px 32px;
+    background: linear-gradient(100deg, var(--pi-verde) 0%, #13705A 45%, var(--pi-marinho) 100%);
+    color: #FFFFFF;
+    margin-bottom: 1.2rem;
+    border-bottom: 3px solid var(--pi-amarelo);
+  }
   .pi-titulo h1 {
-    font-size: 1.6rem;
-    font-weight: 700;
-    color: var(--pi-texto);
+    position: relative;
+    font-weight: 900;
+    font-size: 1.9rem;
     margin: 0;
     padding: 0;
+    color: #FFFFFF;
+    letter-spacing: .3px;
     line-height: 1.25;
   }
   .pi-titulo p {
-    color: var(--pi-fraco);
-    font-size: .92rem;
-    margin: 6px 0 18px;
+    position: relative;
+    margin: 6px 0 0 0;
+    font-size: .98rem;
+    opacity: .92;
+    color: #FFFFFF;
   }
+  .pi-titulo .faixa { position: absolute; top: 0; height: 100%; width: 46px; transform: skewX(-32deg); }
+  .pi-titulo .f1 { right: 150px; background: rgba(140, 211, 169, .35); }
+  .pi-titulo .f2 { right: 80px; background: rgba(11, 79, 138, .85); }
+  .pi-titulo .f3 { right: 10px; background: rgba(255, 255, 255, .12); }
 
   /* ----------------------------------------------------------------- */
-  /* Cartoes (st.container(border=True))                                */
+  /* Cartoes - borda esquerda verde                                     */
   /* ----------------------------------------------------------------- */
-  div[data-testid="stVerticalBlockBorderWrapper"] {
+  /* O Streamlit nao marca no HTML qual container tem borda. Cartao, aqui,
+     e o st.container(border=True) que comeca com tema.titulo_secao. */
+  [data-testid="stMain"] [data-testid="stVerticalBlock"]:has(> [data-testid="stElementContainer"] .pi-secao) {
     background: var(--pi-painel);
     border: 1px solid var(--pi-borda) !important;
+    border-left: 6px solid var(--pi-verde) !important;
     border-radius: var(--pi-raio) !important;
     box-shadow: var(--pi-sombra);
   }
-  /* A barra lateral tambem usa containers; la eles ficam sem cartao. */
-  [data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"] {
-    box-shadow: none;
-    background: transparent;
-  }
 
-  /* Titulo de cada cartao, com o numero do passo em verde. */
+  /* Titulo de cada cartao: bolinha do passo e o nome em verde. */
   .pi-secao {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: 10px;
     margin-bottom: .6rem;
   }
-  .pi-secao .pi-passo {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 7px;
-    background: var(--pi-verde-claro);
-    color: var(--pi-verde);
-    font-size: .75rem;
-    font-weight: 700;
-    flex: 0 0 auto;
-  }
   .pi-secao .pi-nome {
-    color: var(--pi-texto);
-    font-size: 1rem;
-    font-weight: 700;
+    color: var(--pi-verde);
+    font-size: 1.25rem;
+    font-weight: 800;
   }
   .texto-fraco { color: var(--pi-fraco); font-size: .85rem; line-height: 1.5; }
+  section[data-testid="stSidebar"] .texto-fraco { opacity: .88; }
 
-  /* Aviso que a pessoa precisa ler antes de enviar - raro, dai o dourado. */
+  /* Aviso que a pessoa precisa ler antes de enviar - raro, dai o amarelo. */
   .pi-aviso {
-    background: var(--pi-dourado-claro);
-    border-left: 3px solid var(--pi-dourado);
+    background: var(--pi-amarelo-claro);
+    border-left: 4px solid var(--pi-amarelo);
     border-radius: 8px;
-    color: var(--pi-dourado-texto);
+    color: var(--pi-amarelo-texto);
     font-size: .85rem;
     line-height: 1.5;
     padding: 10px 13px;
@@ -331,43 +373,45 @@ _REGRAS = """
   }
 
   /* ----------------------------------------------------------------- */
-  /* Cartelas de numeros                                                */
+  /* Cartelas de numeros - os cards do AutoFill                         */
   /* ----------------------------------------------------------------- */
   .pi-cartelas {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px;
-    margin: 14px 0 4px;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 14px;
+    margin: 14px 0 6px;
   }
   .pi-cartela {
     background: var(--pi-painel);
     border: 1px solid var(--pi-borda);
+    border-left: 6px solid var(--pi-verde);
     border-radius: var(--pi-raio);
     box-shadow: var(--pi-sombra);
-    padding: 13px 15px;
+    padding: 16px 18px;
   }
+  .pi-cartela:first-child { border-left-color: var(--pi-azul); }
   .pi-cartela .pi-rotulo {
     color: var(--pi-fraco);
-    font-size: .72rem;
+    font-size: .74rem;
     font-weight: 600;
     letter-spacing: .6px;
     text-transform: uppercase;
   }
   .pi-cartela .pi-valor {
-    color: var(--pi-texto);
-    font-size: 1.5rem;
-    font-weight: 700;
-    line-height: 1.3;
-    margin-top: 2px;
+    color: var(--pi-marinho);
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-top: 4px;
   }
-  .pi-cartela .pi-detalhe { color: var(--pi-fraco); font-size: .76rem; }
+  .pi-cartela .pi-detalhe { color: var(--pi-fraco); font-size: .8rem; margin-top: 4px; }
 
   /* ----------------------------------------------------------------- */
   /* Campos e botoes                                                    */
   /* ----------------------------------------------------------------- */
   [data-testid="stFileUploaderDropzone"] {
     background: var(--pi-verde-claro);
-    border: 1px dashed var(--pi-verde);
+    border: 1.5px dashed var(--pi-verde-medio);
     border-radius: var(--pi-raio);
   }
 
@@ -381,7 +425,8 @@ _REGRAS = """
   .stButton button[kind="primary"] {
     background: var(--pi-verde);
     border-color: var(--pi-verde);
-    font-weight: 700;
+    color: #FFFFFF;
+    font-weight: 800;
     letter-spacing: .5px;
   }
   .stButton button[kind="primary"]:hover,
@@ -400,15 +445,19 @@ _REGRAS = """
   }
   [data-testid="stDownloadButton"] button { border-radius: 10px; font-weight: 700; }
 
-  [data-testid="stProgress"] > div > div > div > div { background: var(--pi-verde); }
+  [data-testid="stProgress"] > div > div > div > div {
+    background: linear-gradient(90deg, var(--pi-verde-medio), var(--pi-verde));
+  }
 
   /* ----------------------------------------------------------------- */
   /* Registro da execucao                                               */
   /* ----------------------------------------------------------------- */
+  [data-testid="stMain"] [data-testid="stVerticalBlock"].st-key-registro:has(> [data-testid="stElementContainer"] .pi-secao) {
+    border-left-color: var(--pi-azul) !important;
+  }
   .st-key-registro pre, .st-key-registro code {
     background: var(--pi-log-fundo) !important;
     color: var(--pi-log-texto) !important;
-    font-family: var(--pi-mono) !important;
     font-size: .78rem !important;
     line-height: 1.5 !important;
   }
@@ -420,6 +469,9 @@ _REGRAS = """
   /* Em telas estreitas o cartao encosta na borda; um respiro resolve. */
   @media (max-width: 640px) {
     .block-container { padding-left: 1rem; padding-right: 1rem; }
+    .pi-titulo { padding: 20px 20px 18px; }
+    .pi-titulo h1 { font-size: 1.5rem; }
+    .pi-titulo .faixa { display: none; }
   }
 </style>
 """
@@ -435,22 +487,25 @@ def css() -> str:
         "fraco": COR_TEXTO_FRACO,
         "destaque": COR_DESTAQUE,
         "destaque_ativo": COR_DESTAQUE_ATIVO,
+        "destaque_medio": COR_DESTAQUE_MEDIO,
         "destaque_claro": COR_DESTAQUE_CLARO,
         "cabecalho": COR_CABECALHO,
-        "cabecalho_escuro": COR_CABECALHO_ESCURO,
-        "subtitulo": COR_SUBTITULO,
+        "azul": COR_AZUL,
         "log_fundo": COR_LOG_FUNDO,
         "log_texto": COR_LOG_TEXTO,
         "gold": COR_GOLD,
         "gold_claro": COR_GOLD_CLARO,
         "gold_texto": COR_GOLD_TEXTO,
-        "fonte": FAMILIA_FONTE,
-        "mono": FAMILIA_MONO,
+        "planilha_data": COR_PLANILHA_DATA,
+        "planilha_nome": COR_PLANILHA_NOME,
+        "planilha_nome_texto": COR_PLANILHA_NOME_TEXTO,
+        "planilha_tag": COR_PLANILHA_TAG,
+        "planilha_tag_texto": COR_PLANILHA_TAG_TEXTO,
     } + _REGRAS
 
 
 def marca(nome: str, descricao: str, versao: str) -> str:
-    """Cartao azul do topo da barra lateral."""
+    """Cartao do programa, logo abaixo do logotipo da barra lateral."""
     return (
         '<div class="pi-marca">'
         '<div class="pi-marca-nome">%s</div>'
@@ -488,9 +543,11 @@ def miniatura_planilha(data: str, nome: str, tag: str) -> str:
 
 
 def titulo_pagina(titulo: str, subtitulo: str) -> str:
-    """Titulo e linha de apoio no topo do miolo."""
-    return ('<div class="pi-titulo"><h1>%s</h1><p>%s</p></div>'
-            % (titulo, subtitulo))
+    """Cabecalho em degrade do topo do miolo, com as faixas da marca."""
+    return ('<div class="pi-titulo">'
+            '<span class="faixa f1"></span><span class="faixa f2"></span>'
+            '<span class="faixa f3"></span>'
+            '<h1>%s</h1><p>%s</p></div>' % (titulo, subtitulo))
 
 
 def grupo(texto: str) -> str:
@@ -511,7 +568,7 @@ def texto_fraco(texto: str) -> str:
 
 
 def aviso(texto: str) -> str:
-    """Faixa dourada para o que nao pode passar despercebido."""
+    """Faixa amarela para o que nao pode passar despercebido."""
     return '<div class="pi-aviso">%s</div>' % texto
 
 
