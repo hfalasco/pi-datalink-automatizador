@@ -1,14 +1,14 @@
-# Tema da pagina - as mesmas cores da marca.
+# Tema da pagina - as mesmas cores do AutoFill (template Sao Martinho).
 # O Streamlit le este arquivo ANTES de rodar o script, entao as cores de base
-# precisam estar aqui. O restante (barra lateral, cartoes, cartelas de numeros,
-# caixa do registro) fica no CSS de tema.py.
+# precisam estar aqui. O restante (barra lateral, cabecalho, cartoes, cartelas
+# de numeros, caixa do registro) fica no CSS de tema.py.
 
 [theme]
 base = "light"
-primaryColor = "#1E7E4A"              # COR_DESTAQUE  - sm-green
-backgroundColor = "#F2F5F7"           # COR_FUNDO
-secondaryBackgroundColor = "#FFFFFF"  # COR_PAINEL
-textColor = "#1B2733"                 # COR_TEXTO
+primaryColor = "#1F7E4E"              # COR_DESTAQUE
+backgroundColor = "#FFFFFF"           # COR_FUNDO
+secondaryBackgroundColor = "#EAF5EE"  # COR_DESTAQUE_CLARO
+textColor = "#13263A"                 # COR_TEXTO
 
 [server]
 # Teto do servidor para UM arquivo enviado, em MB. Cada pagina tem o seu

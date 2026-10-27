@@ -50,7 +50,7 @@ def planilha_base() -> bytes:
 
 
 st.set_page_config(page_title="Automatizador %s" % NOME_EXIBIDO,
-                   page_icon=":bar_chart:",
+                   page_icon=str(tema.CAMINHO_LOGO),
                    layout="wide", initial_sidebar_state="expanded")
 st.markdown(tema.css(), unsafe_allow_html=True)
 
@@ -69,6 +69,7 @@ pagina = st.navigation([PROCESSAR, TIRAR_FORMULAS], position="hidden")
 
 # --- Barra lateral: marca e modulos (o resto vem de cada pagina) -----------
 with st.sidebar:
+    st.image(str(tema.CAMINHO_LOGO), width="stretch")
     st.markdown(tema.marca(NOME_EXIBIDO, "Automatizador de planilhas",
                            APP_VERSAO), unsafe_allow_html=True)
 

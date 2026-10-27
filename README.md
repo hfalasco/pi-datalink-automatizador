@@ -171,9 +171,10 @@ Na barra lateral:
 
 - **Módulos**
   - **Processar planilhas** e **Tirar fórmulas** — os links das duas páginas
-    do programa. O da página aberta fica em verde. Período e opções continuam
-    como estavam quando você vai para a outra página e volta; os arquivos
-    enviados, não — ao voltar, envie de novo.
+    do programa. O da página aberta fica em destaque (branco, com o texto
+    verde). Período e opções continuam como estavam quando você vai para a
+    outra página e volta; os arquivos enviados, não — ao voltar, envie de
+    novo.
   - **Planilha base** — baixa o modelo em branco das nossas planilhas
     (`planilha_base_pi_datalink.xlsx`), com cada célula da estrutura
     destacada numa cor:
@@ -767,7 +768,9 @@ pi_datalink_automatizador/
     paginas/
         processar.py        página Processar planilhas
         tirar_formulas.py   página Tirar fórmulas (seção 5-E)
-    tema.py                 paleta de cores e CSS
+    tema.py                 paleta de cores e CSS (mesma identidade visual do AutoFill)
+    assets/
+        logo_sao_martinho.png   logotipo do topo da barra lateral e ícone da aba
     config.py               toda a configuração e validação
     logger.py               log em arquivo e na tela
     requirements.txt
@@ -789,8 +792,8 @@ pi_datalink_automatizador/
 
 Cada módulo tem uma responsabilidade só. Trocar a fórmula do PI mexe apenas em
 `core/formula.py` e em `config.py`; mudar a estrutura da planilha mexe apenas
-em `config.py`; mudar a aparência mexe apenas em `tema.py` e
-`.streamlit/config.toml`.
+em `config.py`; mudar a aparência mexe apenas em `tema.py`,
+`.streamlit/config.toml` e `assets/`.
 
 A pasta do projeto é a **raiz da aplicação**, não um pacote: os módulos são
 importados direto dela (`import tema`, `from core import processor`). É de
